@@ -1,7 +1,7 @@
 from ngsolve import *
 from random import random
 import math
-
+import numpy as np
 
 def give_random_magnetisation(mag_grid_func):
     '''
@@ -74,3 +74,10 @@ def get_num_nodes(mag_grid_func):
     '''
     assert len(mag_grid_func.vec) % 3 == 0, "The vector data is not a multiple of three. Wrong dimension?"
     return len(mag_grid_func.vec) // 3
+
+
+def give_magnetisation_update(A, B_T, F):
+    A = A.NumPy()
+    B_T = B_T.NumPy()
+    F = F.NumPy()
+    print(F.ndim)
