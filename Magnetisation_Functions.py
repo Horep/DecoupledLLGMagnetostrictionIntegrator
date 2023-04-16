@@ -2,7 +2,8 @@ from ngsolve import *
 from random import random
 import math
 import numpy as np
-
+import scipy.sparse as sp
+import matplotlib.pyplot as plt
 def give_random_magnetisation(mag_grid_func):
     '''
     Returns a random normalised magnetisation grid function.
@@ -77,7 +78,8 @@ def get_num_nodes(mag_grid_func):
 
 
 def give_magnetisation_update(A, B_T, F):
-    A = A.NumPy()
+    rows,cols,vals = A.mat.COO()
+    A = sp.csr_matrix((vals,(rows,cols))).todense()
     B_T = B_T.NumPy()
-    F = F.NumPy()
-    print(F.ndim)
+    F = F.vec.FV().NumPy()[:]
+    return (type(A),type(B_T), type(F))
