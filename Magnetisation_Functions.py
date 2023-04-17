@@ -99,7 +99,7 @@ def give_magnetisation_update(A, B_T, F):
         B_T (ngsolve.bla.MatrixD): The 3NxN transpose of the tangent plane matrix.
         F   (ngsolve.comp.LinearForm): The 3Nx1 force vector from the variational formulation.
     Returns:
-        NEED SOMETHING HERE!
+        vlam (numpy.ndarray): The set of components to use for the update.
     '''
     rows,cols,vals = A.mat.COO()
     A = sp.csr_matrix((vals,(rows,cols))).todense()
@@ -114,4 +114,4 @@ def give_magnetisation_update(A, B_T, F):
     force_block = np.concatenate((F, np.zeros(N)), axis=0)
     vlam = np.linalg.solve(stiffness_block, force_block)
 
-    return vlam
+    return vlam[0:3*N]
