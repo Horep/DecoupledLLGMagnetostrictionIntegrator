@@ -42,26 +42,37 @@ def nodal_projection(mag_grid_func):
         mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function with length 1 at each node.   
     '''
     num_points = get_num_nodes(mag_grid_func)
+    mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
     for i in range(num_points):
-        a = mag_grid_func.vec[3*i]
-        b = mag_grid_func.vec[3*i + 1]
-        c = mag_grid_func.vec[3*i + 2]
+        a = mag_gfux.vec[i]
+        b = mag_gfuy.vec[i]
+        c = mag_gfuz.vec[i]
         size = math.sqrt(a*a + b*b + c*c)
 
-        mag_grid_func.vec[3*i] = a/size
-        mag_grid_func.vec[3*i + 1] = b/size
-        mag_grid_func.vec[3*i + 2] = c/size
-    
+        mag_gfux.vec[i] = a/size
+        mag_gfuy.vec[i] = b/size
+        mag_gfuz.vec[i] = c/size
+    mag_grid_func.components = mag_gfux, mag_gfuy, mag_gfuz
     return mag_grid_func
 
 
 def build_tangent_plane_matrix_transpose(mag_grid_func):
+    '''
+    Returns the tangent plane transpose B^T used in the saddle point formulation for the tangent plane update.
+
+    Parameters:
+        mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
+    
+    Returns:
+        B_T (ngsolve.bla.MatrixD): 3NxN tangent plane matrix.
+    '''
+    mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
     num_points = get_num_nodes(mag_grid_func)
     B_transpose = Matrix(3*num_points, num_points)
     for j in range(num_points):
-        B_transpose[3*j, j] = mag_grid_func.vec[3*j]
-        B_transpose[3*j+1, j] = mag_grid_func.vec[3*j+1]
-        B_transpose[3*j+2, j] = mag_grid_func.vec[3*j+2]
+        B_transpose[3*j, j] = mag_gfux.vec[j]
+        B_transpose[3*j+1, j] = mag_gfuy.vec[j]
+        B_transpose[3*j+2, j] = mag_gfuz.vec[j]
     return B_transpose
 
 
@@ -80,18 +91,27 @@ def get_num_nodes(mag_grid_func):
 
 
 def give_magnetisation_update(A, B_T, F):
+    '''
+    Returns the tangent plane update v^(i) to the magnetisation such that m^(i+1) = m^(i) + v^(i).
+
+    Parameters:
+        A   (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix from the variational formulation.
+        B_T (ngsolve.bla.MatrixD): The 3NxN transpose of the tangent plane matrix.
+        F   (ngsolve.comp.LinearForm): The 3Nx1 force vector from the variational formulation.
+    Returns:
+        NEED SOMETHING HERE!
+    '''
     rows,cols,vals = A.mat.COO()
     A = sp.csr_matrix((vals,(rows,cols))).todense()
     B_T = B_T.NumPy()
-    B = np.transpose(B_T)
     F = F.vec.FV().NumPy()[:]
     assert len(F) % 3 == 0, "The force vector is not a multiple of three, very bad."
     N = len(F) // 3
     stiffness_block = np.block([
-    [A,              B_T],
-    [B, np.zeros((N, N))]
+    [A,                              B_T],
+    [np.transpose(B_T), np.zeros((N, N))]
     ])
     force_block = np.concatenate((F, np.zeros(N)), axis=0)
-    #vlam = np.linalg.solve(stiffness_block, force_block)
+    vlam = np.linalg.solve(stiffness_block, force_block)
 
-    return force_block
+    return vlam
