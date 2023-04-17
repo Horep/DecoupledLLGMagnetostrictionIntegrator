@@ -4,6 +4,8 @@ import math
 import numpy as np
 import scipy.sparse as sp
 import matplotlib.pyplot as plt
+
+
 def give_random_magnetisation(mag_grid_func):
     '''
     Returns a random normalised magnetisation grid function.
@@ -81,5 +83,15 @@ def give_magnetisation_update(A, B_T, F):
     rows,cols,vals = A.mat.COO()
     A = sp.csr_matrix((vals,(rows,cols))).todense()
     B_T = B_T.NumPy()
+    B = np.transpose(B_T)
     F = F.vec.FV().NumPy()[:]
-    return (type(A),type(B_T), type(F))
+    assert len(F) % 3 == 0, "The force vector is not a multiple of three, very bad."
+    N = len(F) // 3
+    stiffness_block = np.block([
+    [A,              B_T],
+    [B, np.zeros((N, N))]
+    ])
+    force_block = np.concatenate((F, np.zeros(N)), axis=0)
+    #vlam = np.linalg.solve(stiffness_block, force_block)
+
+    return force_block
