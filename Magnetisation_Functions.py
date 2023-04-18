@@ -4,6 +4,7 @@ import math
 import numpy as np
 import scipy.sparse as sp
 import matplotlib.pyplot as plt
+import General_Functions as genfunc
 
 
 def give_random_magnetisation(mag_grid_func):
@@ -14,9 +15,10 @@ def give_random_magnetisation(mag_grid_func):
         mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
 
     Returns:
-        mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function with randomised nodal values and length 1 at each node.   
+        mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function with randomised nodal values in [-1,1]^3 and length 1 at each node.   
     '''
-    num_points = get_num_nodes(mag_grid_func)
+    num_points = genfunc.get_num_nodes(mag_grid_func)
+    mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
     for i in range(num_points):
         a, b, c = 2*random()-1, 2*random()-1, 2*random()-1
         size = math.sqrt(a*a + b*b + c*c)
@@ -24,10 +26,14 @@ def give_random_magnetisation(mag_grid_func):
             a, b, c = a/size, b/size, c/size
         except ZeroDivisionError:  # it is extremely unlikely, but possible, to have a=b=c=0. If this happens, use (1,0,0)
             a, b, c = 1, 0, 0
-        mag_grid_func.vec[3*i] = a
-        mag_grid_func.vec[3*i + 1] = b
-        mag_grid_func.vec[3*i + 2] = c
-    
+        mag_gfux.vec[i] = a
+        mag_gfuy.vec[i] = b
+        mag_gfuz.vec[i] = c
+
+    mag_grid_func.vec.FV().NumPy()[:] = np.concatenate([mag_gfux.vec.FV().NumPy()[:],
+                                                       mag_gfuy.vec.FV().NumPy()[:],
+                                                       mag_gfuz.vec.FV().NumPy()[:]],
+                                                       axis=0)
     return mag_grid_func
 
 
@@ -41,7 +47,7 @@ def nodal_projection(mag_grid_func):
     Returns:
         mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function with length 1 at each node.   
     '''
-    num_points = get_num_nodes(mag_grid_func)
+    num_points = genfunc.get_num_nodes(mag_grid_func)
     mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
     for i in range(num_points):
         a = mag_gfux.vec[i]
@@ -52,45 +58,37 @@ def nodal_projection(mag_grid_func):
         mag_gfux.vec[i] = a/size
         mag_gfuy.vec[i] = b/size
         mag_gfuz.vec[i] = c/size
-    mag_grid_func.components = mag_gfux, mag_gfuy, mag_gfuz
+    mag_grid_func.vec.FV().NumPy()[:] = np.concatenate([mag_gfux.vec.FV().NumPy()[:],
+                                                       mag_gfuy.vec.FV().NumPy()[:],
+                                                       mag_gfuz.vec.FV().NumPy()[:]],
+                                                       axis=0)
     return mag_grid_func
 
 
-def build_tangent_plane_matrix_transpose(mag_grid_func):
+def build_tangent_plane_matrix(mag_grid_func):
     '''
-    Returns the tangent plane transpose B^T used in the saddle point formulation for the tangent plane update.
+    Returns the tangent plane matrix used in the saddle point formulation for the tangent plane update.
 
     Parameters:
         mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
     
     Returns:
-        B_T (ngsolve.bla.MatrixD): 3NxN tangent plane matrix.
+        B (numpy.ndarray): Nx3N tangent plane matrix.
     '''
     mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
-    num_points = get_num_nodes(mag_grid_func)
-    B_transpose = Matrix(3*num_points, num_points)
-    for j in range(num_points):
-        B_transpose[3*j, j] = mag_gfux.vec[j]
-        B_transpose[3*j+1, j] = mag_gfuy.vec[j]
-        B_transpose[3*j+2, j] = mag_gfuz.vec[j]
-    return B_transpose
+    num_points = genfunc.get_num_nodes(mag_grid_func)
+    B = Matrix(num_points, 3*num_points)
+    #  Cast the components of mag_grid_func to flat vector numpy arrays, and then assemble B as a block matrix from diagonals of m1,m2,m3.
+    m1 = mag_gfux.vec.FV().NumPy()[:]
+    m2 = mag_gfuy.vec.FV().NumPy()[:]
+    m3 = mag_gfuz.vec.FV().NumPy()[:]
+    B  = np.block([
+        [np.diag(m1, k=0), np.diag(m2, k=0), np.diag(m3, k=0)]
+    ])
+    return B
 
 
-def get_num_nodes(mag_grid_func):
-    '''
-    Returns the number of nodes within the grid function.
-
-    Parameters:
-        mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
-
-    Returns:
-        number of nodes (Int): Number of nodes in grid function.   
-    '''
-    assert len(mag_grid_func.vec) % 3 == 0, "The vector data is not a multiple of three. Wrong dimension?"
-    return len(mag_grid_func.vec) // 3
-
-
-def give_magnetisation_update(A, B_T, F):
+def give_magnetisation_update(A, B, F):
     '''
     Returns the tangent plane update v^(i) to the magnetisation such that m^(i+1) = m^(i) + v^(i).
 
@@ -103,13 +101,12 @@ def give_magnetisation_update(A, B_T, F):
     '''
     rows,cols,vals = A.mat.COO()
     A = sp.csr_matrix((vals,(rows,cols))).todense()
-    B_T = B_T.NumPy()
     F = F.vec.FV().NumPy()[:]
     assert len(F) % 3 == 0, "The force vector is not a multiple of three, very bad."
     N = len(F) // 3
     stiffness_block = np.block([
-    [A,                              B_T],
-    [np.transpose(B_T), np.zeros((N, N))]
+    [A,  np.transpose(B)],
+    [B, np.zeros((N, N))]
     ])
     force_block = np.concatenate((F, np.zeros(N)), axis=0)
     vlam = np.linalg.solve(stiffness_block, force_block)
