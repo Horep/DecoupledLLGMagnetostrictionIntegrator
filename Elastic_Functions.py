@@ -41,5 +41,5 @@ def give_random_displacement(disp_grid_func):
         disp_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function with randomised nodal values in [-1,1]^3.   
     '''
     num_points = genfunc.get_num_nodes(disp_grid_func)
-    disp_grid_func.vec.FV().NumPy()[:] = (2*np.random.rand(3*num_points, 1) - 1).flatten()
+    disp_grid_func.vec.FV().NumPy()[:] = np.random.uniform(-1, 1, 3*num_points).flatten()
     return disp_grid_func
