@@ -39,7 +39,7 @@ def give_random_magnetisation(mag_grid_func):
 
 def nodal_projection(mag_grid_func):
     '''
-    Returns a grid function with all nodal values projected onto the unit sphere.
+    Returns a grid function with all nodal values projected onto the unit sphere. Every node z will satisfy |m(z)|=1.
 
     Parameters:
         mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
@@ -76,15 +76,14 @@ def build_tangent_plane_matrix(mag_grid_func):
         B (numpy.ndarray): Nx3N tangent plane matrix.
     '''
     mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
-    num_points = genfunc.get_num_nodes(mag_grid_func)
-    B = Matrix(num_points, 3*num_points)
-    #  Cast the components of mag_grid_func to flat vector numpy arrays, and then assemble B as a block matrix from diagonals of m1,m2,m3.
+
+    #  Cast the components of mag_grid_func to flat vector numpy arrays, and then assemble B as a block matrix from diagonal matrices of m1,m2,m3.
     m1 = mag_gfux.vec.FV().NumPy()[:]
     m2 = mag_gfuy.vec.FV().NumPy()[:]
     m3 = mag_gfuz.vec.FV().NumPy()[:]
-    B  = np.block([
-        [np.diag(m1, k=0), np.diag(m2, k=0), np.diag(m3, k=0)]
-    ])
+    B  = np.hstack([
+                  [np.diag(m1, k=0), np.diag(m2, k=0), np.diag(m3, k=0)]
+                  ])
     return B
 
 
