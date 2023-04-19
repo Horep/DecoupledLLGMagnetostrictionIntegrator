@@ -131,6 +131,6 @@ def build_strain_m(fes_eps_m, mag_grid_func):
         M23.vec[i] = m2.vec[i]*m3.vec[i]
         M21.vec[i] = M12.vec[i]
         M31.vec[i] = M13.vec[i]
-        M32.vec[i] = M32.vec[i]
+        M32.vec[i] = M23.vec[i]
 
     return mymatrix
