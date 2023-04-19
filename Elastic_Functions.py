@@ -3,7 +3,7 @@ from random import random
 import math
 import numpy as np
 import General_Functions as genfunc
-
+import Magnetisation_Functions as magfunc
 mu = 1
 lam = 1
 
@@ -16,11 +16,7 @@ def strain(u):
 
 
 def strain_el(m, u):
-    return strain(u) - strain_m(m, u)
-
-
-def strain_m(m, u):
-    return None
+    return strain(u) - magfunc.strain_m(m, u)
 
 
 def stress(strain):
