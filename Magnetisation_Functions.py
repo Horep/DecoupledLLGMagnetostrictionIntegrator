@@ -29,11 +29,6 @@ def give_random_magnetisation(mag_grid_func):
         mag_gfux.vec[i] = a
         mag_gfuy.vec[i] = b
         mag_gfuz.vec[i] = c
-
-    mag_grid_func.vec.FV().NumPy()[:] = np.concatenate([mag_gfux.vec.FV().NumPy()[:],
-                                                       mag_gfuy.vec.FV().NumPy()[:],
-                                                       mag_gfuz.vec.FV().NumPy()[:]],
-                                                       axis=0)
     return mag_grid_func
 
 
@@ -58,10 +53,6 @@ def nodal_projection(mag_grid_func):
         mag_gfux.vec[i] = a/size
         mag_gfuy.vec[i] = b/size
         mag_gfuz.vec[i] = c/size
-    mag_grid_func.vec.FV().NumPy()[:] = np.concatenate([mag_gfux.vec.FV().NumPy()[:],
-                                                       mag_gfuy.vec.FV().NumPy()[:],
-                                                       mag_gfuz.vec.FV().NumPy()[:]],
-                                                       axis=0)
     return mag_grid_func
 
 
@@ -71,7 +62,7 @@ def build_tangent_plane_matrix(mag_grid_func):
 
     Parameters:
         mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
-    
+
     Returns:
         B (numpy.ndarray): Nx3N tangent plane matrix.
     '''
@@ -95,6 +86,7 @@ def give_magnetisation_update(A, B, F):
         A   (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix from the variational formulation.
         B_T (ngsolve.bla.MatrixD): The 3NxN transpose of the tangent plane matrix.
         F   (ngsolve.comp.LinearForm): The 3Nx1 force vector from the variational formulation.
+
     Returns:
         vlam (numpy.ndarray): The set of components to use for the update.
     '''
@@ -111,3 +103,34 @@ def give_magnetisation_update(A, B, F):
     vlam = np.linalg.solve(stiffness_block, force_block)
 
     return vlam[0:3*N]
+
+
+def build_strain_m(fes_eps_m, mag_grid_func):
+    '''
+    Builds a matrix of the form
+    m1*m1-1/3 m1*m2     m1*m3
+    m2*m1     m2*m2-1/3 m2*m3
+    m3*m1     m3*m2     m3*m3-1/3
+    from an input magnetisation of the form (m1,m2,m3)
+    '''
+    numpoints = genfunc.get_num_nodes(mag_grid_func)
+    m1, m2, m3 = mag_grid_func.components
+    mymatrix = GridFunction(fes_eps_m)
+    M11, M12, M13,\
+    M21, M22, M23,\
+    M31, M32, M33 = mymatrix.components
+    # this is a bad implemenation, should be broadcast using numpy arrays, and use symmetry of the matrix. I have avoided this as it makes the code less readable
+    # the symmetry can be implemented in the finite element space fes_eps_m directly with the flag symmetry=True
+
+    for i in range(numpoints):
+        M11.vec[i] = m1.vec[i]*m1.vec[i] - 1/3
+        M22.vec[i] = m2.vec[i]*m2.vec[i] - 1/3
+        M33.vec[i] = m3.vec[i]*m3.vec[i] - 1/3
+        M12.vec[i] = m1.vec[i]*m2.vec[i]
+        M13.vec[i] = m1.vec[i]*m3.vec[i]
+        M23.vec[i] = m2.vec[i]*m3.vec[i]
+        M21.vec[i] = M12.vec[i]
+        M31.vec[i] = M13.vec[i]
+        M32.vec[i] = M32.vec[i]
+
+    return mymatrix
