@@ -83,9 +83,9 @@ def give_magnetisation_update(A, B, F):
     Returns the tangent plane update v^(i) to the magnetisation such that m^(i+1) = m^(i) + v^(i).
 
     Parameters:
-        A   (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix from the variational formulation.
-        B         (ngsolve.bla.MatrixD): The 3NxN transpose of the tangent plane matrix.
-        F     (ngsolve.comp.LinearForm): The 3Nx1 assembled force vector from the variational formulation.
+        A (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix from the variational formulation.
+        B (ngsolve.bla.MatrixD): The 3NxN transpose of the tangent plane matrix.
+        F (ngsolve.comp.LinearForm): The 3Nx1 assembled force vector from the variational formulation.
 
     Returns:
         vlam (numpy.ndarray): The set of components to use for the update.
@@ -96,14 +96,17 @@ def give_magnetisation_update(A, B, F):
     F = F.vec.FV().NumPy()[:]
     assert len(F) % 3 == 0, "The force vector is not a multiple of three, very bad."
     N = len(F) // 3
-    stiffness_block = np.block([[A, np.transpose(B)],[B, np.zeros((N, N))]])
+    stiffness_block = np.block([[A, np.transpose(B)], [B, np.zeros((N, N))]])
     force_block = np.concatenate((F, np.zeros(N)), axis=0)
     vlam = np.linalg.solve(stiffness_block, force_block)
-    v = vlam[0:3*N]
-    residual = np.linalg.norm(B.dot(v), 1)  # in theory, the update should satisfy ||Bv|| = 0.
-    print(residual)
+    v = vlam[0 : 3 * N]
+    residual = np.linalg.norm(
+        B.dot(v), 1
+    )  # in theory, the update should satisfy |Bv| = 0.
     if residual > 1e-10:
-        print("WARNING: ||Bv|| = {residual} > 1e-12. Tangent plane matrix B or update v may not be correctly calculated.")
+        print(
+            "WARNING: ||Bv|| = {residual} > 1e-12. Tangent plane matrix B or update v may not be correctly calculated."
+        )
 
     return v
 
@@ -140,11 +143,19 @@ def build_strain_m(fes_eps_m, mag_grid_func):
 def update_magnetisation(mag_grid_func, v):
     """
     Updates a magnetisation vector with the new values.
+    Parameters:
+        mag_grid_func (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix from the variational formulation.
+        v                         (numpy.ndarray): The 3NxN transpose of the tangent plane matrix.
+
+    Returns:
+        mag_grid_func (numpy.ndarray): The set of components to use for the update.
+
     """
+
     N = genfunc.get_num_nodes(mag_grid_func)
     mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
     mag_gfux.vec.FV().NumPy()[:] += v[0:N]
-    mag_gfuy.vec.FV().NumPy()[:] += v[N:2*N]
-    mag_gfuz.vec.FV().NumPy()[:] += v[2*N:3*N]
+    mag_gfuy.vec.FV().NumPy()[:] += v[N : 2 * N]
+    mag_gfuz.vec.FV().NumPy()[:] += v[2 * N : 3 * N]
 
     return mag_grid_func
