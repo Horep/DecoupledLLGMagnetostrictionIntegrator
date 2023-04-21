@@ -114,15 +114,17 @@ def give_magnetisation_update(A, B, F):
 def build_strain_m(fes_eps_m, mag_grid_func):
     """
     Builds a matrix of the form
-    m1*m1-1/3 m1*m2     m1*m3
-    m2*m1     m2*m2-1/3 m2*m3
-    m3*m1     m3*m2     m3*m3-1/3
+        m1*m1-1/3 m1*m2     m1*m3\n
+        m2*m1     m2*m2-1/3 m2*m3\n
+        m3*m1     m3*m2     m3*m3-1/3
     from an input magnetisation of the form (m1,m2,m3)
     """
     numpoints = genfunc.get_num_nodes(mag_grid_func)
     m1, m2, m3 = mag_grid_func.components
     mymatrix = GridFunction(fes_eps_m)
-    M11, M12, M13, M21, M22, M23, M31, M32, M33 = mymatrix.components
+    M11, M12, M13,\
+    M21, M22, M23,\
+    M31, M32, M33 = mymatrix.components
     # this is a bad implementation, should be broadcast using numpy arrays, and use symmetry of the matrix. I have avoided this as it makes the code less readable
     # the symmetry can be implemented in the finite element space fes_eps_m directly with the flag symmetry=True
 
