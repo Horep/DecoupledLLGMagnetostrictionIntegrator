@@ -6,7 +6,6 @@ import scipy.sparse as sp
 import matplotlib.pyplot as plt
 import General_Functions as genfunc
 
-
 def give_random_magnetisation(mag_grid_func):
     """
     Returns a random normalised magnetisation grid function.
@@ -84,7 +83,7 @@ def give_magnetisation_update(A, B, F):
 
     Parameters:
         A (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix from the variational formulation.
-        B (ngsolve.bla.MatrixD): The 3NxN transpose of the tangent plane matrix.
+        B (ngsolve.bla.MatrixD): The Nx3N tangent plane matrix.
         F (ngsolve.comp.LinearForm): The 3Nx1 assembled force vector from the variational formulation.
 
     Returns:
@@ -101,11 +100,11 @@ def give_magnetisation_update(A, B, F):
     vlam = np.linalg.solve(stiffness_block, force_block)
     v = vlam[0 : 3 * N]
     residual = np.linalg.norm(
-        B.dot(v), 1
+        B.dot(v), 2
     )  # in theory, the update should satisfy |Bv| = 0.
-    if residual > 1e-10:
+    if residual > 1e-12:
         print(
-            "WARNING: ||Bv|| = {residual} > 1e-12. Tangent plane matrix B or update v may not be correctly calculated."
+            f"WARNING: |Bv| = {residual} > 1e-12. Tangent plane matrix B or update v may not be correctly calculated."
         )
 
     return v
@@ -142,22 +141,50 @@ def build_strain_m(fes_eps_m, mag_grid_func):
     return mymatrix
 
 
-def update_magnetisation(mag_grid_func, v):
+def build_magnetic_lin_system(fes_mag, mag_gfu, fes_eps_m, ALPHA: float, THETA: float, K: float, KAPPA:float):
+    #magstrain = build_strain_m(fes_eps_m, mag_gfu)
+    # Test functions
+    v = fes_mag.TrialFunction()
+    phi = fes_mag.TestFunction()
+    # Building the linear system for the magnetisation
+
+    a_mag = BilinearForm(fes_mag)
+    a_mag += ALPHA * InnerProduct(v, phi) * dx  # α<v,Φ>
+    a_mag += THETA * K * InnerProduct(Grad(v), Grad(phi)) * dx  # θk<∇v,∇Φ>
+    a_mag += InnerProduct(Cross(mag_gfu, v), phi) * dx  # <m×v,Φ>
+    a_mag.Assemble()
+
+    f_mag = LinearForm(fes_mag)
+    f_mag += -InnerProduct(Grad(mag_gfu), Grad(phi)) * dx  # -<∇m,∇Φ>
+    # f_mag +=  # magnetostrictive contribution.
+    f_mag.Assemble()
+    return a_mag, f_mag
+
+
+def update_magnetisation(fes_mag, mag_gfu, fes_eps_m, ALPHA: float, THETA: float, K: float, KAPPA:float):
     """
     Updates a magnetisation vector with the new values.
     Parameters:
-        mag_grid_func (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix from the variational formulation.
-        v                         (numpy.ndarray): The 3NxN transpose of the tangent plane matrix.
+        fes_mag (ngsolve.comp.VectorH1)
+        mag_gfu (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix from the variational formulation.
+        fes_eps_m (ngsolve.comp.MatrixValued)
+        ALPHA (float)
+        THETA (float)
+        K (float)
+        KAPPA (float)
 
     Returns:
-        mag_grid_func (numpy.ndarray): The set of components to use for the update.
+        mag_grid_func (numpy.ndarray): The new updated magnetisation at the next time step.
 
     """
+    a_mag, f_mag = build_magnetic_lin_system(fes_mag, mag_gfu, fes_eps_m, ALPHA, THETA, K, KAPPA)
+    B = build_tangent_plane_matrix(mag_gfu)
+    v = give_magnetisation_update(a_mag, B, f_mag)
 
-    N = genfunc.get_num_nodes(mag_grid_func)
-    mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
-    mag_gfux.vec.FV().NumPy()[:] += v[0:N]
-    mag_gfuy.vec.FV().NumPy()[:] += v[N : 2 * N]
-    mag_gfuz.vec.FV().NumPy()[:] += v[2 * N : 3 * N]
+    N = genfunc.get_num_nodes(mag_gfu)
+    mag_gfux, mag_gfuy, mag_gfuz = mag_gfu.components
+    mag_gfux.vec.FV().NumPy()[:] += K*v[0:N]
+    mag_gfuy.vec.FV().NumPy()[:] += K*v[N : 2 * N]
+    mag_gfuz.vec.FV().NumPy()[:] += K*v[2 * N : 3 * N]
 
-    return mag_grid_func
+    return mag_gfu
