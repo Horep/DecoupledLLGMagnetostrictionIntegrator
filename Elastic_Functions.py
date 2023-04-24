@@ -31,7 +31,7 @@ def stress(strain):
     return 2 * mu * strain + lam * Trace(strain) * Id(3)
 
 
-def give_random_displacement(disp_grid_func):
+def give_random_displacement(disp_grid_func: GridFunction) -> GridFunction:
     """
     Returns a displacement grid function with random entries in [-0.1, 0.1].
 
@@ -49,8 +49,15 @@ def give_random_displacement(disp_grid_func):
 
 
 def update_displacement(
-    fes_disp, disp_gfu, disp_gfu_prev, fes_eps_m, mag_gfu, f_body, g_surface, K
-):
+    fes_disp: VectorH1,
+    disp_gfu: GridFunction,
+    disp_gfu_prev: GridFunction,
+    fes_eps_m: MatrixValued,
+    mag_gfu: GridFunction,
+    f_body: CoefficientFunction,
+    g_surface: CoefficientFunction,
+    K: float,
+) -> GridFunction:
     """
 
     Updates a displacement vector with the new values.
@@ -99,10 +106,18 @@ def update_displacement(
 
 
 def FIRST_RUN_update_displacement(
-    fes_disp, disp_gfu, vel_gfu, fes_eps_m, mag_gfu, f_body, g_surface, K
-):
+    fes_disp: VectorH1,
+    disp_gfu: GridFunction,
+    vel_gfu: GridFunction,
+    fes_eps_m: MatrixValued,
+    mag_gfu: GridFunction,
+    f_body: CoefficientFunction,
+    g_surface: CoefficientFunction,
+    K: float,
+) -> GridFunction:
     """
     >Uses the initial velocity condition instead of a difference quotient.<
+
     Updates a displacement vector with the new values.
 
     Parameters:
@@ -146,7 +161,14 @@ def FIRST_RUN_update_displacement(
     return disp_gfu
 
 
-def elastic_energy(mesh, disp_gfu, mag_gfu, f_body, g_surface, KAPPA) -> float:
+def elastic_energy(
+    mesh: Mesh,
+    disp_gfu: GridFunction,
+    mag_gfu: GridFunction,
+    f_body: CoefficientFunction,
+    g_surface: CoefficientFunction,
+    KAPPA: float,
+) -> float:
     """
     >Uses the initial velocity condition instead of a difference quotient.<
     Updates a displacement vector with the new values.
@@ -171,9 +193,10 @@ def elastic_energy(mesh, disp_gfu, mag_gfu, f_body, g_surface, KAPPA) -> float:
     return KAPPA * energy
 
 
-def initial_kinetic_energy(mesh, vel_gfu, KAPPA) -> float:
+def initial_kinetic_energy(mesh: Mesh, vel_gfu: GridFunction, KAPPA: float) -> float:
     """
     Returns the kinetic energy KAPPA/2 _/‾ ||u_t||^2 dx.
+
     Parameters:
         mesh (ngsolve.comp.Mesh): Displacement FE mesh.
         vel_gfu (ngsolve.comp.GridFunction): Initial velocity VectorH1 grid function.
@@ -186,9 +209,16 @@ def initial_kinetic_energy(mesh, vel_gfu, KAPPA) -> float:
     return KAPPA * 0.5 * Integrate(integrand, mesh, VOL)
 
 
-def kinetic_energy(mesh, disp_gfu, disp_gfu_prev, KAPPA, K) -> float:
+def kinetic_energy(
+    mesh: Mesh,
+    disp_gfu: GridFunction,
+    disp_gfu_prev: GridFunction,
+    KAPPA: float,
+    K: float,
+) -> float:
     """
     Returns the kinetic energy KAPPA/(2*K*K) _/‾ ||u^i - u^(i-1)||^2 dx.
+
     Parameters:
         mesh (ngsolve.comp.Mesh): Displacement FE mesh.
         vel_gfu (ngsolve.comp.GridFunction): Initial velocity VectorH1 grid function.
@@ -203,7 +233,7 @@ def kinetic_energy(mesh, disp_gfu, disp_gfu_prev, KAPPA, K) -> float:
     return KAPPA * 0.5 * Integrate(integrand, mesh, VOL) / (K * K)
 
 
-def Voigt_6x6_to_full_3x3x3x3(C):
+def Voigt_6x6_to_full_3x3x3x3(C: np.ndarray) -> np.ndarray:
     """
     Convert from the Voigt representation of the stiffness matrix to the full
     3x3x3x3 representation.
@@ -227,10 +257,37 @@ def Voigt_6x6_to_full_3x3x3x3(C):
     return C_out
 
 
-def full_3x3_to_Voigt_6_index(i, j):
+def full_3x3_to_Voigt_6_index(i: int, j: int) -> int:
     """
     Taken from https://github.com/libAtoms/matscipy/blob/master/matscipy/elasticity.py
     """
     if i == j:
         return i
     return 6 - i - j
+
+
+def isotropic_isochoric_voigt_array(lambda_m: float) -> np.ndarray:
+    """
+    Returns the Voigt (6x6) matrix representation of the isotropic and isochoric magnetostriction tensor.
+    Parameters:
+        lambda_m (float): The saturation magnetostrictive strain.
+
+    Returns:
+        myarray (np.ndarray): The Voigt (6x6) matrix representation.
+    """
+    myarray = np.zeros((6, 6))
+    myarray[0, 0] = lambda_m
+    myarray[1, 1] = lambda_m
+    myarray[2, 2] = lambda_m
+    myarray[3, 3] = 0.75 * lambda_m
+    myarray[4, 4] = 0.75 * lambda_m
+    myarray[5, 5] = 0.75 * lambda_m
+    myarray[1, 2] = -0.5 * lambda_m
+    myarray[1, 3] = -0.5 * lambda_m
+    myarray[2, 1] = -0.5 * lambda_m
+    myarray[3, 1] = -0.5 * lambda_m
+    return myarray
+
+
+def Z_tensor(lambda_m: float) -> np.ndarray:
+    return Voigt_6x6_to_full_3x3x3x3(isotropic_isochoric_voigt_array(lambda_m))
