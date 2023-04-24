@@ -216,12 +216,12 @@ def update_magnetisation(
 
 def magnetic_energy(mag_gfu, mesh) -> float:
     """
-    Returns 1/2 _/‾||∇m||^2 dx
+    Returns 1/2 _/‾||∇m||^2 dx, integrated over the mesh.
     Parameters:
         mag_gfu (ngsolve.comp.GridFunction): A VectorH1 grid function.
         mesh (ngsolve.comp.Mesh): The mesh on which the solution is defined.
 
     Returns:
-        mag_grid_func (ngsolve.comp.GridFunction): The new updated magnetisation at the next time step.
+        magnetic_energy (float): The magnetic energy 1/2 _/‾||∇m||^2 dx.
     """
     return 0.5 * Integrate(InnerProduct(Grad(mag_gfu), Grad(mag_gfu)), mesh, VOL)
