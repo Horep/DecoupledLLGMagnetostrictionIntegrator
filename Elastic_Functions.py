@@ -48,9 +48,11 @@ def give_random_displacement(disp_grid_func):
     return disp_grid_func
 
 
-def update_displacement(fes_disp, disp_gfu, disp_gfu_prev, fes_eps_m, mag_gfu, f_body, g_surface, K):
+def update_displacement(
+    fes_disp, disp_gfu, disp_gfu_prev, fes_eps_m, mag_gfu, f_body, g_surface, K
+):
     """
-    
+
     Updates a displacement vector with the new values.
 
     Parameters:
@@ -69,20 +71,36 @@ def update_displacement(fes_disp, disp_gfu, disp_gfu_prev, fes_eps_m, mag_gfu, f
     # Building the linear system for the displacement
     a_disp = BilinearForm(fes_disp)
     a_disp += InnerProduct(u, psi) * dx  # <u^(i+1), ψ>
-    a_disp += K*K*InnerProduct(stress(strain(u)), strain(psi)) * dx  # k^2<Cε(u), ε(ψ)>
+    a_disp += (
+        K * K * InnerProduct(stress(strain(u)), strain(psi)) * dx
+    )  # k^2<Cε(u), ε(ψ)>
 
     f_disp = LinearForm(fes_disp)
-    f_disp += InnerProduct(stress(magfunc.build_strain_m(fes_eps_m, magfunc.nodal_projection(mag_gfu))), strain(psi))* dx  # <Cε_m(Π m),ε(ψ)>
-    f_disp += InnerProduct(disp_gfu - disp_gfu_prev, psi)*dx  # k<d_t u^i, ψ> = <u^i - u^(i-1), ψ>
-    f_disp +=  InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
-    f_disp += InnerProduct(f_body, psi)*dx  # k^2 <f, ψ>
-    f_disp += InnerProduct(g_surface, psi)*ds  # k^2 _/‾ g·ψ ds
+    f_disp += (
+        InnerProduct(
+            stress(
+                magfunc.build_strain_m(fes_eps_m, magfunc.nodal_projection(mag_gfu))
+            ),
+            strain(psi),
+        )
+        * dx
+    )  # <Cε_m(Π m),ε(ψ)>
+    f_disp += (
+        InnerProduct(disp_gfu - disp_gfu_prev, psi) * dx
+    )  # k<d_t u^i, ψ> = <u^i - u^(i-1), ψ>
+    f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
+    f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
+    f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
 
-    disp_gfu.vec.data = a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky") * f_disp.vec
+    disp_gfu.vec.data = (
+        a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky") * f_disp.vec
+    )
     return disp_gfu
 
 
-def FIRST_RUN_update_displacement(fes_disp, disp_gfu, vel_gfu, fes_eps_m, mag_gfu, f_body, g_surface, K):
+def FIRST_RUN_update_displacement(
+    fes_disp, disp_gfu, vel_gfu, fes_eps_m, mag_gfu, f_body, g_surface, K
+):
     """
     >Uses the initial velocity condition instead of a difference quotient.<
     Updates a displacement vector with the new values.
@@ -103,20 +121,32 @@ def FIRST_RUN_update_displacement(fes_disp, disp_gfu, vel_gfu, fes_eps_m, mag_gf
     # Building the linear system for the displacement
     a_disp = BilinearForm(fes_disp)
     a_disp += InnerProduct(u, psi) * dx  # <u^(i+1), ψ>
-    a_disp += K*K*InnerProduct(stress(strain(u)), strain(psi)) * dx  # k^2<Cε(u), ε(ψ)>
+    a_disp += (
+        K * K * InnerProduct(stress(strain(u)), strain(psi)) * dx
+    )  # k^2<Cε(u), ε(ψ)>
 
     f_disp = LinearForm(fes_disp)
-    f_disp += InnerProduct(stress(magfunc.build_strain_m(fes_eps_m, magfunc.nodal_projection(mag_gfu))), strain(psi))* dx  # <Cε_m(Π m),ε(ψ)>
-    f_disp += K*InnerProduct(vel_gfu, psi)*dx  # k<d_t u^i, ψ>
-    f_disp +=  InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
-    f_disp += InnerProduct(f_body, psi)*dx  # k^2 <f, ψ>
-    f_disp += InnerProduct(g_surface, psi)*ds  # k^2 _/‾ g·ψ ds
+    f_disp += (
+        InnerProduct(
+            stress(
+                magfunc.build_strain_m(fes_eps_m, magfunc.nodal_projection(mag_gfu))
+            ),
+            strain(psi),
+        )
+        * dx
+    )  # <Cε_m(Π m),ε(ψ)>
+    f_disp += K * InnerProduct(vel_gfu, psi) * dx  # k<d_t u^i, ψ>
+    f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
+    f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
+    f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
 
-    disp_gfu.vec.data = a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky") * f_disp.vec
+    disp_gfu.vec.data = (
+        a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky") * f_disp.vec
+    )
     return disp_gfu
 
 
-def elastic_energy(mesh, disp_gfu, mag_gfu, f_body, g_surface, KAPPA):
+def elastic_energy(mesh, disp_gfu, mag_gfu, f_body, g_surface, KAPPA) -> float:
     """
     >Uses the initial velocity condition instead of a difference quotient.<
     Updates a displacement vector with the new values.
@@ -132,14 +162,16 @@ def elastic_energy(mesh, disp_gfu, mag_gfu, f_body, g_surface, KAPPA):
         disp_gfu (numpy.ndarray): The new updated displacement at the i=1 time step.
     """
     mystrain = strain_el(mag_gfu, disp_gfu)
-    vol_integrand = 0.5*InnerProduct(stress(mystrain), mystrain) # -InnerProduct(f_body, disp_gfu)  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
-    #surf_integrand = -InnerProduct(g_surface, disp_gfu)  # -<g,u>_BND
+    vol_integrand = 0.5 * InnerProduct(
+        stress(mystrain), mystrain
+    )  # -InnerProduct(f_body, disp_gfu)  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
+    # surf_integrand = -InnerProduct(g_surface, disp_gfu)  # -<g,u>_BND
     energy = Integrate(vol_integrand, mesh, VOL)
-    #energy += Integrate(vol_integrand, mesh, BND)
-    return KAPPA*energy
+    # energy += Integrate(vol_integrand, mesh, BND)
+    return KAPPA * energy
 
 
-def kinetic_energy(mesh, disp_gfu, disp_gfu_prev, KAPPA):
+def kinetic_energy(mesh, disp_gfu, disp_gfu_prev, KAPPA) -> float:
     """
     Returns the kinetic energy KAPPA/2 _/‾ ||u_t||^2 dx
     """
@@ -162,7 +194,7 @@ def Voigt_6x6_to_full_3x3x3x3(C):
     """
 
     C = np.asarray(C)
-    C_out = np.zeros((3,3,3,3), dtype=float)
+    C_out = np.zeros((3, 3, 3, 3), dtype=float)
     for i, j, k, l in itertools.product(range(3), range(3), range(3), range(3)):
         Voigt_i = full_3x3_to_Voigt_6_index(i, j)
         Voigt_j = full_3x3_to_Voigt_6_index(k, l)
@@ -176,4 +208,4 @@ def full_3x3_to_Voigt_6_index(i, j):
     """
     if i == j:
         return i
-    return 6-i-j
+    return 6 - i - j
