@@ -183,7 +183,7 @@ def initial_kinetic_energy(mesh, vel_gfu, KAPPA) -> float:
         Kinetic energy (float): The initial kinetic energy.
     """
     integrand = InnerProduct(vel_gfu, vel_gfu)
-    return KAPPA*0.5*Integrate(integrand, mesh, VOL)
+    return KAPPA * 0.5 * Integrate(integrand, mesh, VOL)
 
 
 def kinetic_energy(mesh, disp_gfu, disp_gfu_prev, KAPPA, K) -> float:
@@ -200,7 +200,7 @@ def kinetic_energy(mesh, disp_gfu, disp_gfu_prev, KAPPA, K) -> float:
     """
     disp_diff = disp_gfu - disp_gfu_prev
     integrand = InnerProduct(disp_diff, disp_diff)
-    return KAPPA*0.5*Integrate(integrand, mesh, VOL)/(K*K)
+    return KAPPA * 0.5 * Integrate(integrand, mesh, VOL) / (K * K)
 
 
 def Voigt_6x6_to_full_3x3x3x3(C):
