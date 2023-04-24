@@ -152,14 +152,14 @@ def elastic_energy(mesh, disp_gfu, mag_gfu, f_body, g_surface, KAPPA) -> float:
     Updates a displacement vector with the new values.
 
     Parameters:
-        fes_mag (ngsolve.comp.VectorH1): VectorH1 finite element space.
-        disp_gfu (ngsolve.comp.GridFunction): A VectorH1 grid function at the i=0 time step.
-        vel_gfu (ngsolve.comp.GridFunction): A VectorH1 grid function that models the initial velocity.
+        mesh (ngsolve.comp.Mesh): Displacement FE mesh.
+        disp_gfu (ngsolve.comp.GridFunction): Displacement VectorH1 grid function.
         f_body (ngsolve.fem.CoefficientFunction): The body force.
         g_surface (ngsolve.fem.CoefficientFunction): The traction.
+        KAPPA (float): Relative strength of magnetic to elastic contributions.
 
     Returns:
-        disp_gfu (numpy.ndarray): The new updated displacement at the i=1 time step.
+        KAPPA*energy (float): Elastic energy.
     """
     mystrain = strain_el(mag_gfu, disp_gfu)
     vol_integrand = 0.5 * InnerProduct(
@@ -167,15 +167,40 @@ def elastic_energy(mesh, disp_gfu, mag_gfu, f_body, g_surface, KAPPA) -> float:
     )  # -InnerProduct(f_body, disp_gfu)  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
     # surf_integrand = -InnerProduct(g_surface, disp_gfu)  # -<g,u>_BND
     energy = Integrate(vol_integrand, mesh, VOL)
-    # energy += Integrate(vol_integrand, mesh, BND)
+    # energy += Integrate(surf_integrand, mesh, BND)
     return KAPPA * energy
 
 
-def kinetic_energy(mesh, disp_gfu, disp_gfu_prev, KAPPA) -> float:
+def initial_kinetic_energy(mesh, vel_gfu, KAPPA) -> float:
     """
-    Returns the kinetic energy KAPPA/2 _/‾ ||u_t||^2 dx
+    Returns the kinetic energy KAPPA/2 _/‾ ||u_t||^2 dx.
+    Parameters:
+        mesh (ngsolve.comp.Mesh): Displacement FE mesh.
+        vel_gfu (ngsolve.comp.GridFunction): Initial velocity VectorH1 grid function.
+        KAPPA (float): Relative strength of magnetic to elastic contributions.
+
+    Returns:
+        Kinetic energy (float): The initial kinetic energy.
     """
-    return None
+    integrand = InnerProduct(vel_gfu, vel_gfu)
+    return KAPPA*0.5*Integrate(integrand, mesh, VOL)
+
+
+def kinetic_energy(mesh, disp_gfu, disp_gfu_prev, KAPPA, K) -> float:
+    """
+    Returns the kinetic energy KAPPA/(2*K*K) _/‾ ||u^i - u^(i-1)||^2 dx.
+    Parameters:
+        mesh (ngsolve.comp.Mesh): Displacement FE mesh.
+        vel_gfu (ngsolve.comp.GridFunction): Initial velocity VectorH1 grid function.
+        KAPPA (float): Relative strength of magnetic to elastic contributions.
+        K (float): Timestep.
+
+    Returns:
+        Kinetic energy (float): The kinetic energy.
+    """
+    disp_diff = disp_gfu - disp_gfu_prev
+    integrand = InnerProduct(disp_diff, disp_diff)
+    return KAPPA*0.5*Integrate(integrand, mesh, VOL)/(K*K)
 
 
 def Voigt_6x6_to_full_3x3x3x3(C):
