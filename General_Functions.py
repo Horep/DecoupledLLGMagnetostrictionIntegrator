@@ -4,7 +4,7 @@ import math
 import numpy as np
 
 
-def get_num_nodes(grid_func) -> int:
+def get_num_nodes(grid_func: GridFunction) -> int:
     """
     Returns the number of nodes within the grid function.
 
@@ -30,7 +30,7 @@ def ceiling_division(a: float, b: float) -> int:
 
     Returns:
         ceil(a/b) (int): Number of nodes in grid function.
-    
+
     Examples:
         ceiling_division(1.0, 2.0) = 1
         ceiling_division(5.0, 4.0) = 2
