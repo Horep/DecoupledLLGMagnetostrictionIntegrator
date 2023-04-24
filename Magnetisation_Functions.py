@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import General_Functions as genfunc
 
 
-def give_random_magnetisation(mag_grid_func):
+def give_random_magnetisation(mag_grid_func: GridFunction) -> GridFunction:
     """
     Returns a random normalised magnetisation grid function.
 
@@ -34,7 +34,7 @@ def give_random_magnetisation(mag_grid_func):
     return mag_grid_func
 
 
-def nodal_projection(mag_grid_func):
+def nodal_projection(mag_grid_func: GridFunction) -> GridFunction:
     """
     Returns a grid function with all nodal values projected onto the unit sphere. Every node z will satisfy |m(z)|=1.
 
@@ -58,7 +58,7 @@ def nodal_projection(mag_grid_func):
     return mag_grid_func
 
 
-def build_tangent_plane_matrix(mag_grid_func):
+def build_tangent_plane_matrix(mag_grid_func: GridFunction) -> np.ndarray:
     """
     Returns the tangent plane matrix used in the saddle point formulation for the tangent plane update.
 
@@ -79,7 +79,9 @@ def build_tangent_plane_matrix(mag_grid_func):
     return B
 
 
-def give_magnetisation_update(A, B, F):
+def give_magnetisation_update(
+    A: BilinearForm, B: bla.MatrixD, F: LinearForm
+) -> np.ndarray:
     """
     Returns the tangent plane update v^(i) to the magnetisation such that m^(i+1) = m^(i) + v^(i).
 
@@ -91,12 +93,16 @@ def give_magnetisation_update(A, B, F):
     Returns:
         vlam (numpy.ndarray): The set of components to use for the update.
     """
+    #  Convert to dense numpy matrix for A, and convert F to a numpy array.
+    #  Converting to dense is bad for performance.
     rows, cols, vals = A.mat.COO()
     A = sp.csr_matrix((vals, (rows, cols))).todense()
     A = np.array(A)
     F = F.vec.FV().NumPy()[:]
     assert len(F) % 3 == 0, "The force vector is not a multiple of three, very bad."
     N = len(F) // 3
+    #  Make block stiffness matrix and block force vector and then solve.
+    #  Throw away last N terms as these are the lagrange multipliers enforcing the tangent plane.
     stiffness_block = np.block([[A, np.transpose(B)], [B, np.zeros((N, N))]])
     force_block = np.concatenate((F, np.zeros(N)), axis=0)
     vlam = np.linalg.solve(stiffness_block, force_block)
@@ -112,13 +118,22 @@ def give_magnetisation_update(A, B, F):
     return v
 
 
-def build_strain_m(fes_eps_m, mag_grid_func, lambda100: float):
+def build_strain_m(
+    fes_eps_m: MatrixValued, mag_grid_func: GridFunction, lambda_m: float
+) -> GridFunction:
     """
     Builds a matrix of the form
         m1*m1-1/3 m1*m2     m1*m3\n
         m2*m1     m2*m2-1/3 m2*m3\n
         m3*m1     m3*m2     m3*m3-1/3
-    from an input magnetisation of the form (m1,m2,m3)
+    from an input magnetisation of the form (m1,m2,m3) scaled by 3/2 lambda_m.
+
+    Parameters:
+        fes_eps_m (ngsolve.comp.MatrixValued): A matrix valued FE space for magnetisation.
+        mag_grid_func (ngsolve.comp.GridFunction): Input magnetisation grid function.
+        lambda100 (float): The saturation magnetostrictive strain.
+    Returns:
+        mymatrix (ngsolve.comp.GridFunction): The magnetostrain matrix.
     """
     numpoints = genfunc.get_num_nodes(mag_grid_func)
     m1, m2, m3 = mag_grid_func.components
@@ -129,25 +144,31 @@ def build_strain_m(fes_eps_m, mag_grid_func, lambda100: float):
     #  the symmetry can be implemented in the finite element space fes_eps_m directly with the flag symmetry=True
 
     for i in range(numpoints):
-        M11.vec[i] = lambda100 * m1.vec[i] * m1.vec[i] - lambda100 / 3
-        M22.vec[i] = lambda100 * m2.vec[i] * m2.vec[i] - lambda100 / 3
-        M33.vec[i] = lambda100 * m3.vec[i] * m3.vec[i] - lambda100 / 3
-        M12.vec[i] = lambda100 * m1.vec[i] * m2.vec[i]
-        M13.vec[i] = lambda100 * m1.vec[i] * m3.vec[i]
-        M23.vec[i] = lambda100 * m2.vec[i] * m3.vec[i]
+        M11.vec[i] = m1.vec[i] * m1.vec[i] - 1 / 3
+        M22.vec[i] = m2.vec[i] * m2.vec[i] - 1 / 3
+        M33.vec[i] = m3.vec[i] * m3.vec[i] - 1 / 3
+        M12.vec[i] = m1.vec[i] * m2.vec[i]
+        M13.vec[i] = m1.vec[i] * m3.vec[i]
+        M23.vec[i] = m2.vec[i] * m3.vec[i]
         M21.vec[i] = M12.vec[i]
         M31.vec[i] = M13.vec[i]
         M32.vec[i] = M23.vec[i]
-
+    mymatrix = 3 * lambda_m / 2 * mymatrix
     return mymatrix
 
 
 def build_magnetic_lin_system(
-    fes_mag, mag_gfu, fes_eps_m, ALPHA: float, THETA: float, K: float, KAPPA: float
+    fes_mag: VectorH1,
+    mag_gfu: GridFunction,
+    fes_eps_m: MatrixValued,
+    ALPHA: float,
+    THETA: float,
+    K: float,
+    KAPPA: float,
 ):
     """
     Builds the variational formulation in terms of H1 components.
-    Does not account for unit length constraint.
+    Does not account for unit length constraint other than use of tangent plane scheme.
 
     Parameters:
         fes_mag (ngsolve.comp.VectorH1): VectorH1 finite element space.
@@ -182,7 +203,13 @@ def build_magnetic_lin_system(
 
 
 def update_magnetisation(
-    fes_mag, mag_gfu, fes_eps_m, ALPHA: float, THETA: float, K: float, KAPPA: float
+    fes_mag: VectorH1,
+    mag_gfu: GridFunction,
+    fes_eps_m: MatrixValued,
+    ALPHA: float,
+    THETA: float,
+    K: float,
+    KAPPA: float,
 ):
     """
     Updates a magnetisation vector with the new values.
@@ -214,7 +241,7 @@ def update_magnetisation(
     return mag_gfu
 
 
-def magnetic_energy(mag_gfu, mesh) -> float:
+def magnetic_energy(mag_gfu: GridFunction, mesh: Mesh) -> float:
     """
     Returns 1/2 _/‾||∇m||^2 dx, integrated over the mesh.
     Parameters:
