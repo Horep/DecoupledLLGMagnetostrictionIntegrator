@@ -70,7 +70,8 @@ def build_tangent_plane_matrix(mag_grid_func):
     """
     mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
 
-    #  Cast the components of mag_grid_func to flat vector numpy arrays, and then assemble B as a block matrix from diagonal matrices of m1,m2,m3.
+    #  Cast the components of mag_grid_func to flat vector numpy arrays,
+    #  and then assemble B as a block matrix from diagonal matrices of m1,m2,m3.
     m1 = mag_gfux.vec.FV().NumPy()[:]
     m2 = mag_gfuy.vec.FV().NumPy()[:]
     m3 = mag_gfuz.vec.FV().NumPy()[:]
@@ -111,7 +112,7 @@ def give_magnetisation_update(A, B, F):
     return v
 
 
-def build_strain_m(fes_eps_m, mag_grid_func):
+def build_strain_m(fes_eps_m, mag_grid_func, lambda100: float):
     """
     Builds a matrix of the form
         m1*m1-1/3 m1*m2     m1*m3\n
@@ -123,16 +124,17 @@ def build_strain_m(fes_eps_m, mag_grid_func):
     m1, m2, m3 = mag_grid_func.components
     mymatrix = GridFunction(fes_eps_m)
     M11, M12, M13, M21, M22, M23, M31, M32, M33 = mymatrix.components
-    # this is a bad implementation, should be broadcast using numpy arrays, and use symmetry of the matrix. I have avoided this as it makes the code less readable
-    # the symmetry can be implemented in the finite element space fes_eps_m directly with the flag symmetry=True
+    #  this is a bad implementation, should be broadcast using numpy arrays, and use symmetry of the matrix.
+    #  I have avoided this as it makes the code less readable
+    #  the symmetry can be implemented in the finite element space fes_eps_m directly with the flag symmetry=True
 
     for i in range(numpoints):
-        M11.vec[i] = m1.vec[i] * m1.vec[i] - 1 / 3
-        M22.vec[i] = m2.vec[i] * m2.vec[i] - 1 / 3
-        M33.vec[i] = m3.vec[i] * m3.vec[i] - 1 / 3
-        M12.vec[i] = m1.vec[i] * m2.vec[i]
-        M13.vec[i] = m1.vec[i] * m3.vec[i]
-        M23.vec[i] = m2.vec[i] * m3.vec[i]
+        M11.vec[i] = lambda100 * m1.vec[i] * m1.vec[i] - lambda100 / 3
+        M22.vec[i] = lambda100 * m2.vec[i] * m2.vec[i] - lambda100 / 3
+        M33.vec[i] = lambda100 * m3.vec[i] * m3.vec[i] - lambda100 / 3
+        M12.vec[i] = lambda100 * m1.vec[i] * m2.vec[i]
+        M13.vec[i] = lambda100 * m1.vec[i] * m3.vec[i]
+        M23.vec[i] = lambda100 * m2.vec[i] * m3.vec[i]
         M21.vec[i] = M12.vec[i]
         M31.vec[i] = M13.vec[i]
         M32.vec[i] = M23.vec[i]
@@ -195,7 +197,7 @@ def update_magnetisation(
         KAPPA (float): Relative strength of magnetic vs. elastic contributions.
 
     Returns:
-        mag_grid_func (numpy.ndarray): The new updated magnetisation at the next time step.
+        mag_grid_func (ngsolve.comp.GridFunction): The new updated magnetisation at the next time step.
     """
     a_mag, f_mag = build_magnetic_lin_system(
         fes_mag, mag_gfu, fes_eps_m, ALPHA, THETA, K, KAPPA
@@ -217,9 +219,9 @@ def magnetic_energy(mag_gfu, mesh) -> float:
     Returns 1/2 _/‾||∇m||^2 dx
     Parameters:
         mag_gfu (ngsolve.comp.GridFunction): A VectorH1 grid function.
-        mesh (ngsolve.comp.Mesh)
+        mesh (ngsolve.comp.Mesh): The mesh on which the solution is defined.
 
     Returns:
-        mag_grid_func (numpy.ndarray): The new updated magnetisation at the next time step.
+        mag_grid_func (ngsolve.comp.GridFunction): The new updated magnetisation at the next time step.
     """
     return 0.5 * Integrate(InnerProduct(Grad(mag_gfu), Grad(mag_gfu)), mesh, VOL)
