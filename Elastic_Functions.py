@@ -291,3 +291,12 @@ def isotropic_isochoric_voigt_array(lambda_m: float) -> np.ndarray:
 
 def Z_tensor(lambda_m: float) -> np.ndarray:
     return Voigt_6x6_to_full_3x3x3x3(isotropic_isochoric_voigt_array(lambda_m))
+
+
+def magnetostriction_field(disp_gfu, mag_gfu) -> GridFunction:
+    """
+    Takes in a displacement and magnetisation, and returns (assuming Z is symmetric)
+    2 ZC[ε(u) - ε_m(Proj(m))] Proj(m)
+    May have to use a projection onto the finite element space to allow linear algebra to be used.
+    """
+    return None
