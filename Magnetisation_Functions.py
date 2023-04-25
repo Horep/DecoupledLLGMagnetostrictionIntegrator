@@ -34,6 +34,34 @@ def give_random_magnetisation(mag_grid_func: GridFunction) -> GridFunction:
     return mag_grid_func
 
 
+def give_uniform_magnetisation(mag_grid_func: GridFunction) -> GridFunction:
+    """
+    Returns a random normalised magnetisation grid function.
+
+    Parameters:
+        mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
+
+    Returns:
+        mag_grid_func (ngsolve.comp.GridFunction): A uniform VectorH1 grid function with value in [-1,1]^3 and length 1 at each node.
+    """
+    num_points = genfunc.get_num_nodes(mag_grid_func)
+    mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
+    a, b, c = 2 * random() - 1, 2 * random() - 1, 2 * random() - 1
+    size = math.sqrt(a * a + b * b + c * c)
+    try:
+        a, b, c = a / size, b / size, c / size
+    except (
+        ZeroDivisionError
+    ):  # it is extremely unlikely, but possible, to have a=b=c=0. If this happens, use (1,0,0)
+        a, b, c = 1, 0, 0
+    print(f"a={a},b={b},c={c}, size={math.sqrt(a * a + b * b + c * c)}")
+    for i in range(num_points):
+        mag_gfux.vec[i] = a
+        mag_gfuy.vec[i] = b
+        mag_gfuz.vec[i] = c
+    return mag_grid_func
+
+
 def nodal_projection(mag_grid_func: GridFunction) -> GridFunction:
     """
     Returns a grid function with all nodal values projected onto the unit sphere. Every node z will satisfy |m(z)|=1.
@@ -120,9 +148,9 @@ def give_magnetisation_update(
 
 def build_strain_m(
     fes_eps_m: MatrixValued, mag_grid_func: GridFunction, lambda_m: float
-) -> GridFunction:
+) -> CoefficientFunction:
     """
-    Builds a matrix of the form
+    Builds a Coefficient function matrix of the form
         m1*m1-1/3 m1*m2     m1*m3\n
         m2*m1     m2*m2-1/3 m2*m3\n
         m3*m1     m3*m2     m3*m3-1/3
@@ -133,26 +161,24 @@ def build_strain_m(
         mag_grid_func (ngsolve.comp.GridFunction): Input magnetisation grid function.
         lambda100 (float): The saturation magnetostrictive strain.
     Returns:
-        mymatrix (ngsolve.comp.GridFunction): The magnetostrain matrix.
+        mymatrix (ngsolve.comp.CoefficientFunction): The magnetostrain matrix.
     """
     numpoints = genfunc.get_num_nodes(mag_grid_func)
     m1, m2, m3 = mag_grid_func.components
-    mymatrix = GridFunction(fes_eps_m)
-    M11, M12, M13, M21, M22, M23, M31, M32, M33 = mymatrix.components
-    #  this is a bad implementation, should be broadcast using numpy arrays, and use symmetry of the matrix.
-    #  I have avoided this as it makes the code less readable
-    #  the symmetry can be implemented in the finite element space fes_eps_m directly with the flag symmetry=True
-
-    for i in range(numpoints):
-        M11.vec[i] = m1.vec[i] * m1.vec[i] - 1 / 3
-        M22.vec[i] = m2.vec[i] * m2.vec[i] - 1 / 3
-        M33.vec[i] = m3.vec[i] * m3.vec[i] - 1 / 3
-        M12.vec[i] = m1.vec[i] * m2.vec[i]
-        M13.vec[i] = m1.vec[i] * m3.vec[i]
-        M23.vec[i] = m2.vec[i] * m3.vec[i]
-        M21.vec[i] = M12.vec[i]
-        M31.vec[i] = M13.vec[i]
-        M32.vec[i] = M23.vec[i]
+    mymatrix = CoefficientFunction(
+        (
+            m1 * m1 - 1 / 3,
+            m1 * m2,
+            m1 * m3,
+            m2 * m1,
+            m2 * m2 - 1 / 3,
+            m2 * m3,
+            m3 * m1,
+            m3 * m2,
+            m3 * m3 - 1 / 3,
+        ),
+        dims=(3, 3),
+    )
     mymatrix = 3 * lambda_m / 2 * mymatrix
     return mymatrix
 
@@ -237,7 +263,6 @@ def update_magnetisation(
     mag_gfux.vec.FV().NumPy()[:] += K * v[0:N]
     mag_gfuy.vec.FV().NumPy()[:] += K * v[N : 2 * N]
     mag_gfuz.vec.FV().NumPy()[:] += K * v[2 * N : 3 * N]
-
     return mag_gfu
 
 
@@ -251,4 +276,13 @@ def magnetic_energy(mag_gfu: GridFunction, mesh: Mesh) -> float:
     Returns:
         magnetic_energy (float): The magnetic energy 1/2 _/‾||∇m||^2 dx.
     """
+    return 0.5 * Integrate(InnerProduct(Grad(mag_gfu), Grad(mag_gfu)), mesh, VOL)
+
+
+def projected_magnetic_energy(mag_gfu: GridFunction, mesh: Mesh) -> float:
+    """
+    Returns 1/2 _/‾||∇proj(m)||^2 dx, integrated over the mesh.
+    Useful for checking how much energy is contributed from the direction vs. magnitude.
+    """
+    mag_gfu = nodal_projection(mag_gfu)
     return 0.5 * Integrate(InnerProduct(Grad(mag_gfu), Grad(mag_gfu)), mesh, VOL)
