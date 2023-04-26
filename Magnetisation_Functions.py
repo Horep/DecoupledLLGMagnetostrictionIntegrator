@@ -76,7 +76,7 @@ def nodal_projection(mag_gfu: GridFunction, fes_mag) -> GridFunction:
     projected_func = GridFunction(fes_mag)
     num_points = genfunc.get_num_nodes(mag_gfu)
     mag_gfux, mag_gfuy, mag_gfuz = mag_gfu.components
-    projected_funcx,  projected_funcy,  projected_funcz =  projected_func.components
+    projected_funcx, projected_funcy, projected_funcz = projected_func.components
     for i in range(num_points):
         a = mag_gfux.vec[i]
         b = mag_gfuy.vec[i]
@@ -290,4 +290,6 @@ def projected_magnetic_energy(mag_gfu: GridFunction, mesh: Mesh, fes_mag) -> flo
     Useful for checking how much energy is contributed from the direction vs. magnitude.
     """
     my_projection = nodal_projection(mag_gfu, fes_mag)
-    return 0.5 * Integrate(InnerProduct(Grad(my_projection), Grad(my_projection)), mesh, VOL)
+    return 0.5 * Integrate(
+        InnerProduct(Grad(my_projection), Grad(my_projection)), mesh, VOL
+    )

@@ -35,5 +35,4 @@ def ceiling_division(a: float, b: float) -> int:
         ceiling_division(1.0, 2.0) = 1
         ceiling_division(5.0, 4.0) = 2
     """
-    result = int(-(a // -b))
-    return result
+    return int(-(a // -b))
