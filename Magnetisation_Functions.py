@@ -63,7 +63,7 @@ def give_uniform_magnetisation(mag_grid_func: GridFunction) -> GridFunction:
     return mag_grid_func
 
 
-def nodal_projection(mag_grid_func: GridFunction) -> GridFunction:
+def nodal_projection(mag_gfu: GridFunction, fes_mag) -> GridFunction:
     """
     Returns a grid function with all nodal values projected onto the unit sphere. Every node z will satisfy |m(z)|=1.
 
@@ -73,18 +73,20 @@ def nodal_projection(mag_grid_func: GridFunction) -> GridFunction:
     Returns:
         mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function with length 1 at each node.
     """
-    num_points = genfunc.get_num_nodes(mag_grid_func)
-    mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
+    projected_func = GridFunction(fes_mag)
+    num_points = genfunc.get_num_nodes(mag_gfu)
+    mag_gfux, mag_gfuy, mag_gfuz = mag_gfu.components
+    projected_funcx,  projected_funcy,  projected_funcz =  projected_func.components
     for i in range(num_points):
         a = mag_gfux.vec[i]
         b = mag_gfuy.vec[i]
         c = mag_gfuz.vec[i]
         size = math.sqrt(a * a + b * b + c * c)
 
-        mag_gfux.vec[i] = a / size
-        mag_gfuy.vec[i] = b / size
-        mag_gfuz.vec[i] = c / size
-    return mag_grid_func
+        projected_funcx.vec[i] = a / size
+        projected_funcy.vec[i] = b / size
+        projected_funcz.vec[i] = c / size
+    return projected_func
 
 
 def build_tangent_plane_matrix(
@@ -149,7 +151,7 @@ def give_magnetisation_update(
 
 
 def build_strain_m(
-    fes_eps_m: MatrixValued, mag_grid_func: GridFunction, lambda_m: float
+    fes_eps_m: MatrixValued, mag_gfu: GridFunction, lambda_m: float
 ) -> CoefficientFunction:
     """
     Builds a Coefficient function matrix of the form
@@ -165,6 +167,7 @@ def build_strain_m(
     Returns:
         mymatrix (ngsolve.comp.CoefficientFunction): The magnetostrain matrix.
     """
+    mag_grid_func = mag_gfu
     numpoints = genfunc.get_num_nodes(mag_grid_func)
     m1, m2, m3 = mag_grid_func.components
     mymatrix = CoefficientFunction(
@@ -216,17 +219,17 @@ def build_magnetic_lin_system(
     v = fes_mag.TrialFunction()
     phi = fes_mag.TestFunction()
     # Building the linear system for the magnetisation
+    with TaskManager():
+        a_mag = BilinearForm(fes_mag)
+        a_mag += ALPHA * InnerProduct(v, phi) * dx  # α<v,Φ>
+        a_mag += THETA * K * InnerProduct(Grad(v), Grad(phi)) * dx  # θk<∇v,∇Φ>
+        a_mag += InnerProduct(Cross(mag_gfu, v), phi) * dx  # <m×v,Φ>
+        a_mag.Assemble()
 
-    a_mag = BilinearForm(fes_mag)
-    a_mag += ALPHA * InnerProduct(v, phi) * dx  # α<v,Φ>
-    a_mag += THETA * K * InnerProduct(Grad(v), Grad(phi)) * dx  # θk<∇v,∇Φ>
-    a_mag += InnerProduct(Cross(mag_gfu, v), phi) * dx  # <m×v,Φ>
-    a_mag.Assemble()
-
-    f_mag = LinearForm(fes_mag)
-    f_mag += -InnerProduct(Grad(mag_gfu), Grad(phi)) * dx  # -<∇m,∇Φ>
-    # f_mag +=  # magnetostrictive contribution.
-    f_mag.Assemble()
+        f_mag = LinearForm(fes_mag)
+        f_mag += -InnerProduct(Grad(mag_gfu), Grad(phi)) * dx  # -<∇m,∇Φ>
+        # f_mag +=  # magnetostrictive contribution.
+        f_mag.Assemble()
     return a_mag, f_mag
 
 
@@ -238,7 +241,7 @@ def update_magnetisation(
     THETA: float,
     K: float,
     KAPPA: float,
-):
+) -> GridFunction:
     """
     Updates a magnetisation vector with the new values.
 
@@ -281,10 +284,10 @@ def magnetic_energy(mag_gfu: GridFunction, mesh: Mesh) -> float:
     return 0.5 * Integrate(InnerProduct(Grad(mag_gfu), Grad(mag_gfu)), mesh, VOL)
 
 
-def projected_magnetic_energy(mag_gfu: GridFunction, mesh: Mesh) -> float:
+def projected_magnetic_energy(mag_gfu: GridFunction, mesh: Mesh, fes_mag) -> float:
     """
     Returns 1/2 _/‾||∇proj(m)||^2 dx, integrated over the mesh.
     Useful for checking how much energy is contributed from the direction vs. magnitude.
     """
-    mag_gfu = nodal_projection(mag_gfu)
-    return 0.5 * Integrate(InnerProduct(Grad(mag_gfu), Grad(mag_gfu)), mesh, VOL)
+    my_projection = nodal_projection(mag_gfu, fes_mag)
+    return 0.5 * Integrate(InnerProduct(Grad(my_projection), Grad(my_projection)), mesh, VOL)
