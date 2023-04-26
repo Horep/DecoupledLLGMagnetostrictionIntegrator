@@ -87,7 +87,9 @@ def nodal_projection(mag_grid_func: GridFunction) -> GridFunction:
     return mag_grid_func
 
 
-def build_tangent_plane_matrix(mag_grid_func: GridFunction):
+def build_tangent_plane_matrix(
+    mag_grid_func: GridFunction,
+) -> scipy.sparse.csr.csr_matrix:
     """
     Returns the tangent plane matrix used in the saddle point formulation for the tangent plane update.
 
@@ -95,7 +97,7 @@ def build_tangent_plane_matrix(mag_grid_func: GridFunction):
         mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
 
     Returns:
-        B : Sparse Nx3N tangent plane matrix.
+        B (scipy.sparse.csr.csr_matrix): Sparse Nx3N tangent plane matrix.
     """
     mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
     N = genfunc.get_num_nodes(mag_grid_func)
@@ -104,12 +106,12 @@ def build_tangent_plane_matrix(mag_grid_func: GridFunction):
     m1 = scipy.sparse.spdiags(mag_gfux.vec.FV().NumPy()[:], diags=0, m=N, n=N)
     m2 = scipy.sparse.spdiags(mag_gfuy.vec.FV().NumPy()[:], diags=0, m=N, n=N)
     m3 = scipy.sparse.spdiags(mag_gfuz.vec.FV().NumPy()[:], diags=0, m=N, n=N)
-    B = scipy.sparse.bmat([[m1,m2,m3]], format="csr")
+    B = scipy.sparse.bmat([[m1, m2, m3]], format="csr")
     return B
 
 
 def give_magnetisation_update(
-    A: BilinearForm, B: bla.MatrixD, F: LinearForm
+    A: BilinearForm, B: scipy.sparse.csr.csr_matrix, F: LinearForm
 ) -> np.ndarray:
     """
     Returns the tangent plane update v^(i) to the magnetisation such that m^(i+1) = m^(i) + v^(i).
