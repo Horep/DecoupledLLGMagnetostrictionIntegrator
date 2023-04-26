@@ -2,7 +2,8 @@ from ngsolve import *
 from random import random
 import math
 import numpy as np
-import scipy.sparse as sp
+import scipy.sparse
+import scipy.sparse.linalg
 import matplotlib.pyplot as plt
 import General_Functions as genfunc
 
@@ -86,7 +87,7 @@ def nodal_projection(mag_grid_func: GridFunction) -> GridFunction:
     return mag_grid_func
 
 
-def build_tangent_plane_matrix(mag_grid_func: GridFunction) -> np.ndarray:
+def build_tangent_plane_matrix(mag_grid_func: GridFunction):
     """
     Returns the tangent plane matrix used in the saddle point formulation for the tangent plane update.
 
@@ -94,16 +95,16 @@ def build_tangent_plane_matrix(mag_grid_func: GridFunction) -> np.ndarray:
         mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
 
     Returns:
-        B (numpy.ndarray): Nx3N tangent plane matrix.
+        B : Sparse Nx3N tangent plane matrix.
     """
     mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
-
+    N = genfunc.get_num_nodes(mag_grid_func)
     #  Cast the components of mag_grid_func to flat vector numpy arrays,
     #  and then assemble B as a block matrix from diagonal matrices of m1,m2,m3.
-    m1 = mag_gfux.vec.FV().NumPy()[:]
-    m2 = mag_gfuy.vec.FV().NumPy()[:]
-    m3 = mag_gfuz.vec.FV().NumPy()[:]
-    B = np.block([[np.diag(m1, k=0), np.diag(m2, k=0), np.diag(m3, k=0)]])
+    m1 = scipy.sparse.spdiags(mag_gfux.vec.FV().NumPy()[:], diags=0, m=N, n=N)
+    m2 = scipy.sparse.spdiags(mag_gfuy.vec.FV().NumPy()[:], diags=0, m=N, n=N)
+    m3 = scipy.sparse.spdiags(mag_gfuz.vec.FV().NumPy()[:], diags=0, m=N, n=N)
+    B = scipy.sparse.bmat([[m1,m2,m3]], format="csr")
     return B
 
 
@@ -124,17 +125,16 @@ def give_magnetisation_update(
     #  Convert to dense numpy matrix for A, and convert F to a numpy array.
     #  Converting to dense is bad for performance.
     rows, cols, vals = A.mat.COO()
-    A = sp.csr_matrix((vals, (rows, cols))).todense()
-    A = np.array(A)
+    A = scipy.sparse.csr_matrix((vals, (rows, cols)))
     F = F.vec.FV().NumPy()[:]
     assert len(F) % 3 == 0, "The force vector is not a multiple of three, very bad."
     N = len(F) // 3
     #  Make block stiffness matrix and block force vector and then solve.
     #  Throw away last N terms as these are the lagrange multipliers enforcing the tangent plane.
-    stiffness_block = np.block([[A, np.transpose(B)], [B, np.zeros((N, N))]])
+    stiffness_block = scipy.sparse.bmat([[A, B.transpose()], [B, None]], format="csr")
     force_block = np.concatenate((F, np.zeros(N)), axis=0)
-    vlam = np.linalg.solve(stiffness_block, force_block)
-    v = vlam[0 : 3 * N]
+    vlam = scipy.sparse.linalg.spsolve(stiffness_block, force_block)
+    v = np.asarray(vlam)[0 : 3 * N]
     residual = np.linalg.norm(
         B.dot(v), 2
     )  # in theory, the update should satisfy |Bv| = 0.
