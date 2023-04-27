@@ -36,3 +36,20 @@ def ceiling_division(a: float, b: float) -> int:
         ceiling_division(5.0, 4.0) = 2
     """
     return int(-(a // -b))
+
+
+def export_to_vtk_file(
+    displacement: GridFunction,
+    magnetisation: GridFunction,
+    mesh: Mesh,
+    export: bool = False,
+):
+    if export is False:
+        return None
+    vtk = VTKOutput(
+        ma=mesh,
+        coefs=[displacement, magnetisation],
+        names=["displacement", "magnetisation"],
+        filename="the_result",
+    )
+    vtk.Do()
