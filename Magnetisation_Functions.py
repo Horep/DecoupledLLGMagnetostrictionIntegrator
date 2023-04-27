@@ -168,7 +168,6 @@ def build_strain_m(
         mymatrix (ngsolve.comp.CoefficientFunction): The magnetostrain matrix.
     """
     mag_grid_func = mag_gfu
-    numpoints = genfunc.get_num_nodes(mag_grid_func)
     m1, m2, m3 = mag_grid_func.components
     mymatrix = CoefficientFunction(
         (
