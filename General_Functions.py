@@ -43,6 +43,7 @@ def export_to_vtk_file(
     magnetisation: GridFunction,
     mesh: Mesh,
     export: bool = False,
+    index: int = 0,
 ):
     if export is False:
         return None
@@ -50,6 +51,6 @@ def export_to_vtk_file(
         ma=mesh,
         coefs=[displacement, magnetisation],
         names=["displacement", "magnetisation"],
-        filename="the_result",
+        filename=f"the_result{index}",
     )
     vtk.Do()

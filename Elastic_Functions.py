@@ -54,7 +54,7 @@ def update_displacement(
     g_surface: CoefficientFunction,
     K: float,
     mu: float,
-    lam: float
+    lam: float,
 ) -> GridFunction:
     """
 
@@ -83,7 +83,7 @@ def update_displacement(
 
         f_disp = LinearForm(fes_disp)
         f_disp += (
-            InnerProduct(stress(strain_m, mu, lam), strain(psi))* dx
+            InnerProduct(stress(strain_m, mu, lam), strain(psi)) * dx
         )  # <Cε_m(Π m),ε(ψ)>
         f_disp += (
             InnerProduct(disp_gfu - disp_gfu_prev, psi) * dx
@@ -93,7 +93,8 @@ def update_displacement(
         f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
 
         disp_gfu.vec.data = (
-            a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky") * f_disp.vec
+            a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky")
+            * f_disp.vec
         )
     return disp_gfu
 
@@ -107,7 +108,7 @@ def FIRST_RUN_update_displacement(
     g_surface: CoefficientFunction,
     K: float,
     mu: float,
-    lam: float
+    lam: float,
 ) -> GridFunction:
     """
     >Uses the initial velocity condition instead of a difference quotient.<
@@ -136,15 +137,16 @@ def FIRST_RUN_update_displacement(
 
         f_disp = LinearForm(fes_disp)
         f_disp += (
-            InnerProduct(stress(strain_m, mu, lam), strain(psi))* dx
+            InnerProduct(stress(strain_m, mu, lam), strain(psi)) * dx
         )  # <Cε_m(Π m),ε(ψ)>
         f_disp += K * InnerProduct(vel_gfu, psi) * dx  # k<d_t u^i, ψ>
         f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
-        f_disp += K*K*InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
-        f_disp += K*K*InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
+        f_disp += K * K * InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
+        f_disp += K * K * InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
 
         disp_gfu.vec.data = (
-            a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky") * f_disp.vec
+            a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky")
+            * f_disp.vec
         )
     return disp_gfu
 
@@ -155,7 +157,7 @@ def elastic_energy(
     strain_m: GridFunction,
     f_body: CoefficientFunction,
     g_surface: CoefficientFunction,
-    KAPPA: float =1,
+    KAPPA: float = 1,
 ) -> float:
     """
     >Uses the initial velocity condition instead of a difference quotient.<
@@ -172,7 +174,9 @@ def elastic_energy(
         KAPPA*energy (float): Elastic energy.
     """
     mystrain = strain_el(strain_m, disp_gfu)
-    vol_integrand = 0.5 * InnerProduct(stress(mystrain), mystrain) - InnerProduct(f_body, disp_gfu)  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
+    vol_integrand = 0.5 * InnerProduct(stress(mystrain), mystrain) - InnerProduct(
+        f_body, disp_gfu
+    )  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
     surf_integrand = InnerProduct(g_surface, disp_gfu)  # -<g,u>_BND
     energy = Integrate(vol_integrand, mesh, VOL)
     energy += -Integrate(surf_integrand, mesh, BND)
@@ -279,12 +283,16 @@ def Z_tensor(lambda_m: float) -> np.ndarray:
     return Voigt_6x6_to_full_3x3x3x3(isotropic_isochoric_voigt_array(lambda_m))
 
 
-def magnetostriction_field(Gradu, proj_mag_gfu, mu, lam, lambda_m) -> CoefficientFunction:
+def magnetostriction_field(
+    Gradu, proj_mag_gfu, mu, lam, lambda_m
+) -> CoefficientFunction:
     """
     Takes in a displacement and magnetisation, and returns (assuming Z is symmetric, isotropic and isochoric)
     2 ZC[ε(u) - ε_m(Proj(m))] Proj(m)
     """
     strain_m = magfunc.build_strain_m(proj_mag_gfu, lambda_m)  # ε_m(Proj(m))
     myStress = stress(Gradu - strain_m, mu, lam)  # C[ε(u) - ε_m(Proj(m))]
-    magStress = 3*lambda_m/2 * (myStress - Trace(myStress) * Id(3)) #  ZC[ε(u) - ε_m(Proj(m))]
+    magStress = (
+        3 * lambda_m / 2 * (myStress - Trace(myStress) * Id(3))
+    )  #  ZC[ε(u) - ε_m(Proj(m))]
     return 2 * magStress * proj_mag_gfu

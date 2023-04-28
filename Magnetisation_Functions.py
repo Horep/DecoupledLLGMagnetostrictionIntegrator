@@ -6,6 +6,7 @@ import scipy.sparse
 import scipy.sparse.linalg
 import matplotlib.pyplot as plt
 import General_Functions as genfunc
+import Elastic_Functions as elfunc
 import time
 
 
@@ -138,12 +139,12 @@ def give_magnetisation_update(
     #  Throw away last N terms as these are the lagrange multipliers enforcing the tangent plane.
     stiffness_block = scipy.sparse.bmat([[A, B.transpose()], [B, None]], format="csr")
     force_block = np.concatenate((F, np.zeros(N)), axis=0)
-    #time1 = time.time()
-    #vlam = scipy.sparse.linalg.spsolve(stiffness_block, force_block)
+    # time1 = time.time()
+    # vlam = scipy.sparse.linalg.spsolve(stiffness_block, force_block)
     time2 = time.time()
     vlam, myinfo = scipy.sparse.linalg.gmres(stiffness_block, force_block, tol=1e-8)
     time3 = time.time()
-    #print(f"spsolve completed in {time2-time1}")
+    # print(f"spsolve completed in {time2-time1}")
     v = np.asarray(vlam)[0 : 3 * N]
     residual = np.linalg.norm(
         B.dot(v), np.inf
@@ -157,9 +158,7 @@ def give_magnetisation_update(
     return v
 
 
-def build_strain_m(
-    mag_grid_func: GridFunction, lambda_m: float
-) -> CoefficientFunction:
+def build_strain_m(mag_grid_func: GridFunction, lambda_m: float) -> CoefficientFunction:
     """
     Builds a Coefficient function matrix of the form
         m1*m1-1/3 m1*m2     m1*m3\n
@@ -174,7 +173,7 @@ def build_strain_m(
     Returns:
         mymatrix (ngsolve.fem.CoefficientFunction): The magnetostrain matrix.
     """
-    mymatrix = OuterProduct(mag_grid_func, mag_grid_func) - 1/3*Id(3)
+    mymatrix = OuterProduct(mag_grid_func, mag_grid_func) - 1 / 3 * Id(3)
     mymatrix = 3 * lambda_m / 2 * mymatrix
     return mymatrix
 
@@ -182,11 +181,15 @@ def build_strain_m(
 def build_magnetic_lin_system(
     fes_mag: VectorH1,
     mag_gfu: GridFunction,
-    fes_eps_m: MatrixValued,
+    strain_m: MatrixValued,
     ALPHA: float,
     THETA: float,
     K: float,
     KAPPA: float,
+    disp_gfu: GridFunction,
+    mu: float,
+    lam: float,
+    lambda_m: float,
 ):
     """
     Builds the variational formulation in terms of H1 components.
@@ -209,6 +212,10 @@ def build_magnetic_lin_system(
     # Test functions
     v = fes_mag.TrialFunction()
     phi = fes_mag.TestFunction()
+    proj_mag = nodal_projection(mag_gfu, fes_mag)
+    magnetostrain = elfunc.magnetostriction_field(
+        Grad(disp_gfu), proj_mag, mu, lam, lambda_m
+    )
     # Building the linear system for the magnetisation
     with TaskManager():
         a_mag = BilinearForm(fes_mag)
@@ -219,7 +226,7 @@ def build_magnetic_lin_system(
 
         f_mag = LinearForm(fes_mag)
         f_mag += -InnerProduct(Grad(mag_gfu), Grad(phi)) * dx  # -<∇m,∇Φ>
-        # f_mag +=  # magnetostrictive contribution.
+        f_mag += InnerProduct(magnetostrain, phi) * dx  # <h_m , Φ>
         f_mag.Assemble()
     return a_mag, f_mag
 
