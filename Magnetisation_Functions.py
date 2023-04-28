@@ -6,6 +6,7 @@ import scipy.sparse
 import scipy.sparse.linalg
 import matplotlib.pyplot as plt
 import General_Functions as genfunc
+import time
 
 
 def give_random_magnetisation(mag_grid_func: GridFunction) -> GridFunction:
@@ -137,21 +138,27 @@ def give_magnetisation_update(
     #  Throw away last N terms as these are the lagrange multipliers enforcing the tangent plane.
     stiffness_block = scipy.sparse.bmat([[A, B.transpose()], [B, None]], format="csr")
     force_block = np.concatenate((F, np.zeros(N)), axis=0)
-    vlam = scipy.sparse.linalg.spsolve(stiffness_block, force_block)
+    #time1 = time.time()
+    #vlam = scipy.sparse.linalg.spsolve(stiffness_block, force_block)
+    time2 = time.time()
+    vlam, myinfo = scipy.sparse.linalg.gmres(stiffness_block, force_block, tol=1e-8)
+    time3 = time.time()
+    #print(f"spsolve completed in {time2-time1}")
     v = np.asarray(vlam)[0 : 3 * N]
     residual = np.linalg.norm(
-        B.dot(v), 2
+        B.dot(v), np.inf
     )  # in theory, the update should satisfy |Bv| = 0.
-    if residual > 1e-12:
+    print(f"gmres completed in {time3-time2}, info={myinfo}, residual = {residual}")
+    if residual > 1e-8:
         print(
-            f"WARNING: |Bv| = {residual} > 1e-12. Tangent plane matrix B or update v may not be correctly calculated."
+            f"WARNING: |Bv| = {residual} > 1e-8. Tangent plane matrix B or update v may not be correctly calculated."
         )
 
     return v
 
 
 def build_strain_m(
-    fes_eps_m: MatrixValued, mag_gfu: GridFunction, lambda_m: float
+    mag_grid_func: GridFunction, lambda_m: float
 ) -> CoefficientFunction:
     """
     Builds a Coefficient function matrix of the form
@@ -165,24 +172,9 @@ def build_strain_m(
         mag_grid_func (ngsolve.comp.GridFunction): Input magnetisation grid function.
         lambda100 (float): The saturation magnetostrictive strain.
     Returns:
-        mymatrix (ngsolve.comp.CoefficientFunction): The magnetostrain matrix.
+        mymatrix (ngsolve.fem.CoefficientFunction): The magnetostrain matrix.
     """
-    mag_grid_func = mag_gfu
-    m1, m2, m3 = mag_grid_func.components
-    mymatrix = CoefficientFunction(
-        (
-            m1 * m1 - 1 / 3,
-            m1 * m2,
-            m1 * m3,
-            m2 * m1,
-            m2 * m2 - 1 / 3,
-            m2 * m3,
-            m3 * m1,
-            m3 * m2,
-            m3 * m3 - 1 / 3,
-        ),
-        dims=(3, 3),
-    )
+    mymatrix = OuterProduct(mag_grid_func, mag_grid_func) - 1/3*Id(3)
     mymatrix = 3 * lambda_m / 2 * mymatrix
     return mymatrix
 
