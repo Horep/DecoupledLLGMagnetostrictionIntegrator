@@ -6,9 +6,6 @@ import itertools
 import General_Functions as genfunc
 import Magnetisation_Functions as magfunc
 
-mu = 1
-lam = 1
-
 
 def strain(u):
     """
@@ -17,14 +14,14 @@ def strain(u):
     return Sym(Grad(u))
 
 
-def strain_el(m, u):
+def strain_el(strain_m, u):
     """
     Returns the elastic strain, the difference of the total strain and magnetostrain.
     """
-    return strain(u) - magfunc.build_strain_m(m, u, 1.0)
+    return strain(u) - strain_m
 
 
-def stress(strain):
+def stress(strain, mu, lam):
     """
     Returns the stress associated with (the isotropic) Hooke's law from a given strain.
     """
@@ -52,11 +49,12 @@ def update_displacement(
     fes_disp: VectorH1,
     disp_gfu: GridFunction,
     disp_gfu_prev: GridFunction,
-    fes_eps_m: MatrixValued,
-    mag_gfu: GridFunction,
+    strain_m: CoefficientFunction,
     f_body: CoefficientFunction,
     g_surface: CoefficientFunction,
     K: float,
+    mu: float,
+    lam: float
 ) -> GridFunction:
     """
 
@@ -73,35 +71,30 @@ def update_displacement(
         disp_gfu (ngsolve.comp.GridFunction): The new updated displacement at the next time step.
     """
     # Test functions
-    u = fes_disp.TrialFunction()
-    psi = fes_disp.TestFunction()
-    # Building the linear system for the displacement
-    a_disp = BilinearForm(fes_disp)
-    a_disp += InnerProduct(u, psi) * dx  # <u^(i+1), ψ>
-    a_disp += (
-        K * K * InnerProduct(stress(strain(u)), strain(psi)) * dx
-    )  # k^2<Cε(u), ε(ψ)>
+    with TaskManager():
+        u = fes_disp.TrialFunction()
+        psi = fes_disp.TestFunction()
+        # Building the linear system for the displacement
+        a_disp = BilinearForm(fes_disp)
+        a_disp += InnerProduct(u, psi) * dx  # <u^(i+1), ψ>
+        a_disp += (
+            K * K * InnerProduct(stress(strain(u), mu, lam), strain(psi)) * dx
+        )  # k^2<Cε(u), ε(ψ)>
 
-    f_disp = LinearForm(fes_disp)
-    f_disp += (
-        InnerProduct(
-            stress(
-                magfunc.build_strain_m(fes_eps_m, magfunc.nodal_projection(mag_gfu))
-            ),
-            strain(psi),
+        f_disp = LinearForm(fes_disp)
+        f_disp += (
+            InnerProduct(stress(strain_m, mu, lam), strain(psi))* dx
+        )  # <Cε_m(Π m),ε(ψ)>
+        f_disp += (
+            InnerProduct(disp_gfu - disp_gfu_prev, psi) * dx
+        )  # k<d_t u^i, ψ> = <u^i - u^(i-1), ψ>
+        f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
+        f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
+        f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
+
+        disp_gfu.vec.data = (
+            a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky") * f_disp.vec
         )
-        * dx
-    )  # <Cε_m(Π m),ε(ψ)>
-    f_disp += (
-        InnerProduct(disp_gfu - disp_gfu_prev, psi) * dx
-    )  # k<d_t u^i, ψ> = <u^i - u^(i-1), ψ>
-    f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
-    f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
-    f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
-
-    disp_gfu.vec.data = (
-        a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky") * f_disp.vec
-    )
     return disp_gfu
 
 
@@ -109,11 +102,12 @@ def FIRST_RUN_update_displacement(
     fes_disp: VectorH1,
     disp_gfu: GridFunction,
     vel_gfu: GridFunction,
-    fes_eps_m: MatrixValued,
-    mag_gfu: GridFunction,
+    strain_m: CoefficientFunction,
     f_body: CoefficientFunction,
     g_surface: CoefficientFunction,
     K: float,
+    mu: float,
+    lam: float
 ) -> GridFunction:
     """
     >Uses the initial velocity condition instead of a difference quotient.<
@@ -130,44 +124,38 @@ def FIRST_RUN_update_displacement(
     Returns:
         disp_gfu (ngsolve.comp.GridFunction): The new updated displacement at the i=1 time step.
     """
-    # Test functions
-    u = fes_disp.TrialFunction()
-    psi = fes_disp.TestFunction()
-    # Building the linear system for the displacement
-    a_disp = BilinearForm(fes_disp)
-    a_disp += InnerProduct(u, psi) * dx  # <u^(i+1), ψ>
-    a_disp += (
-        K * K * InnerProduct(stress(strain(u)), strain(psi)) * dx
-    )  # k^2<Cε(u), ε(ψ)>
+    with TaskManager():
+        u = fes_disp.TrialFunction()
+        psi = fes_disp.TestFunction()
+        # Building the linear system for the displacement
+        a_disp = BilinearForm(fes_disp)
+        a_disp += InnerProduct(u, psi) * dx  # <u^(i+1), ψ>
+        a_disp += (
+            K * K * InnerProduct(stress(strain(u), mu, lam), strain(psi)) * dx
+        )  # k^2<Cε(u), ε(ψ)>
 
-    f_disp = LinearForm(fes_disp)
-    f_disp += (
-        InnerProduct(
-            stress(
-                magfunc.build_strain_m(fes_eps_m, magfunc.nodal_projection(mag_gfu))
-            ),
-            strain(psi),
+        f_disp = LinearForm(fes_disp)
+        f_disp += (
+            InnerProduct(stress(strain_m, mu, lam), strain(psi))* dx
+        )  # <Cε_m(Π m),ε(ψ)>
+        f_disp += K * InnerProduct(vel_gfu, psi) * dx  # k<d_t u^i, ψ>
+        f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
+        f_disp += K*K*InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
+        f_disp += K*K*InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
+
+        disp_gfu.vec.data = (
+            a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky") * f_disp.vec
         )
-        * dx
-    )  # <Cε_m(Π m),ε(ψ)>
-    f_disp += K * InnerProduct(vel_gfu, psi) * dx  # k<d_t u^i, ψ>
-    f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
-    f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
-    f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
-
-    disp_gfu.vec.data = (
-        a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky") * f_disp.vec
-    )
     return disp_gfu
 
 
 def elastic_energy(
     mesh: Mesh,
     disp_gfu: GridFunction,
-    mag_gfu: GridFunction,
+    strain_m: GridFunction,
     f_body: CoefficientFunction,
     g_surface: CoefficientFunction,
-    KAPPA: float,
+    KAPPA: float =1,
 ) -> float:
     """
     >Uses the initial velocity condition instead of a difference quotient.<
@@ -183,13 +171,11 @@ def elastic_energy(
     Returns:
         KAPPA*energy (float): Elastic energy.
     """
-    mystrain = strain_el(mag_gfu, disp_gfu)
-    vol_integrand = 0.5 * InnerProduct(
-        stress(mystrain), mystrain
-    )  # -InnerProduct(f_body, disp_gfu)  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
-    # surf_integrand = -InnerProduct(g_surface, disp_gfu)  # -<g,u>_BND
+    mystrain = strain_el(strain_m, disp_gfu)
+    vol_integrand = 0.5 * InnerProduct(stress(mystrain), mystrain) - InnerProduct(f_body, disp_gfu)  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
+    surf_integrand = InnerProduct(g_surface, disp_gfu)  # -<g,u>_BND
     energy = Integrate(vol_integrand, mesh, VOL)
-    # energy += Integrate(surf_integrand, mesh, BND)
+    energy += -Integrate(surf_integrand, mesh, BND)
     return KAPPA * energy
 
 
@@ -293,10 +279,13 @@ def Z_tensor(lambda_m: float) -> np.ndarray:
     return Voigt_6x6_to_full_3x3x3x3(isotropic_isochoric_voigt_array(lambda_m))
 
 
-def magnetostriction_field(disp_gfu, mag_gfu) -> GridFunction:
+def magnetostriction_field(Gradu, proj_mag_gfu, mu, lam, lambda_m) -> GridFunction:
     """
     Takes in a displacement and magnetisation, and returns (assuming Z is symmetric)
     2 ZC[ε(u) - ε_m(Proj(m))] Proj(m)
     May have to use a projection onto the finite element space to allow linear algebra to be used.
     """
-    return None
+    strain_m = magfunc.build_strain_m(proj_mag_gfu, lambda_m)  # ε_m(Proj(m))
+    myStress = stress(Gradu - strain_m)  # C[ε(u) - ε_m(Proj(m))]
+    magStress = 3*lambda_m/2 *(strain + Trace(strain) * Id(3)) #  2ZC[ε(u) - ε_m(Proj(m))]
+    return 2 * magStress * proj_mag_gfu
