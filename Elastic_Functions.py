@@ -279,13 +279,12 @@ def Z_tensor(lambda_m: float) -> np.ndarray:
     return Voigt_6x6_to_full_3x3x3x3(isotropic_isochoric_voigt_array(lambda_m))
 
 
-def magnetostriction_field(Gradu, proj_mag_gfu, mu, lam, lambda_m) -> GridFunction:
+def magnetostriction_field(Gradu, proj_mag_gfu, mu, lam, lambda_m) -> CoefficientFunction:
     """
-    Takes in a displacement and magnetisation, and returns (assuming Z is symmetric)
+    Takes in a displacement and magnetisation, and returns (assuming Z is symmetric, isotropic and isochoric)
     2 ZC[ε(u) - ε_m(Proj(m))] Proj(m)
-    May have to use a projection onto the finite element space to allow linear algebra to be used.
     """
     strain_m = magfunc.build_strain_m(proj_mag_gfu, lambda_m)  # ε_m(Proj(m))
-    myStress = stress(Gradu - strain_m)  # C[ε(u) - ε_m(Proj(m))]
-    magStress = 3*lambda_m/2 *(strain + Trace(strain) * Id(3)) #  2ZC[ε(u) - ε_m(Proj(m))]
+    myStress = stress(Gradu - strain_m, mu, lam)  # C[ε(u) - ε_m(Proj(m))]
+    magStress = 3*lambda_m/2 * (myStress - Trace(myStress) * Id(3)) #  ZC[ε(u) - ε_m(Proj(m))]
     return 2 * magStress * proj_mag_gfu
