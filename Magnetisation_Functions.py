@@ -239,6 +239,10 @@ def update_magnetisation(
     THETA: float,
     K: float,
     KAPPA: float,
+    disp_gfu,
+    mu,
+    lam,
+    lambda_m
 ) -> GridFunction:
     """
     Updates a magnetisation vector with the new values.
@@ -256,7 +260,7 @@ def update_magnetisation(
         mag_grid_func (ngsolve.comp.GridFunction): The new updated magnetisation at the next time step.
     """
     a_mag, f_mag = build_magnetic_lin_system(
-        fes_mag, mag_gfu, fes_eps_m, ALPHA, THETA, K, KAPPA
+        fes_mag, mag_gfu, fes_eps_m, ALPHA, THETA, K, KAPPA, disp_gfu, mu, lam, lambda_m
     )
     B = build_tangent_plane_matrix(mag_gfu)
     v = give_magnetisation_update(a_mag, B, f_mag)

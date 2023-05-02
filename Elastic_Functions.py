@@ -70,6 +70,7 @@ def update_displacement(
     Returns:
         disp_gfu (ngsolve.comp.GridFunction): The new updated displacement at the next time step.
     """
+    new_disp = GridFunction(fes_disp)
     # Test functions
     with TaskManager():
         u = fes_disp.TrialFunction()
@@ -89,14 +90,15 @@ def update_displacement(
             InnerProduct(disp_gfu - disp_gfu_prev, psi) * dx
         )  # k<d_t u^i, ψ> = <u^i - u^(i-1), ψ>
         f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
-        f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
-        f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
-
-        disp_gfu.vec.data = (
+        #f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
+        #f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
+        a_disp.Assemble()
+        f_disp.Assemble()
+        new_disp.vec.data = (
             a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky")
             * f_disp.vec
         )
-    return disp_gfu
+    return new_disp
 
 
 def FIRST_RUN_update_displacement(
@@ -123,8 +125,9 @@ def FIRST_RUN_update_displacement(
         g_surface (ngsolve.fem.CoefficientFunction): The traction.
 
     Returns:
-        disp_gfu (ngsolve.comp.GridFunction): The new updated displacement at the i=1 time step.
+        new_disp (ngsolve.comp.GridFunction): The new updated displacement at the i=1 time step.
     """
+    new_disp = GridFunction(fes_disp)
     with TaskManager():
         u = fes_disp.TrialFunction()
         psi = fes_disp.TestFunction()
@@ -141,14 +144,16 @@ def FIRST_RUN_update_displacement(
         )  # <Cε_m(Π m),ε(ψ)>
         f_disp += K * InnerProduct(vel_gfu, psi) * dx  # k<d_t u^i, ψ>
         f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
-        f_disp += K * K * InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
-        f_disp += K * K * InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
+        #f_disp += K * K * InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
+        #f_disp += K * K * InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
 
-        disp_gfu.vec.data = (
+        a_disp.Assemble()
+        f_disp.Assemble()
+        new_disp.vec.data = (
             a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky")
             * f_disp.vec
         )
-    return disp_gfu
+    return new_disp
 
 
 def elastic_energy(
@@ -157,7 +162,9 @@ def elastic_energy(
     strain_m: GridFunction,
     f_body: CoefficientFunction,
     g_surface: CoefficientFunction,
-    KAPPA: float = 1,
+    KAPPA: float,
+    mu,
+    lam
 ) -> float:
     """
     >Uses the initial velocity condition instead of a difference quotient.<
@@ -174,12 +181,10 @@ def elastic_energy(
         KAPPA*energy (float): Elastic energy.
     """
     mystrain = strain_el(strain_m, disp_gfu)
-    vol_integrand = 0.5 * InnerProduct(stress(mystrain), mystrain) - InnerProduct(
-        f_body, disp_gfu
-    )  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
-    surf_integrand = InnerProduct(g_surface, disp_gfu)  # -<g,u>_BND
+    vol_integrand = 0.5 * InnerProduct(stress(mystrain, mu, lam), mystrain) #- InnerProduct(f_body, disp_gfu)  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
+    #surf_integrand = InnerProduct(g_surface, disp_gfu)  # -<g,u>_BND
     energy = Integrate(vol_integrand, mesh, VOL)
-    energy += -Integrate(surf_integrand, mesh, BND)
+    #energy += -Integrate(surf_integrand, mesh, BND)
     return KAPPA * energy
 
 
