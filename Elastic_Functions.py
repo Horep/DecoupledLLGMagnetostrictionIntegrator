@@ -84,8 +84,8 @@ def update_displacement(
 
         f_disp = LinearForm(fes_disp)
         f_disp += (
-            InnerProduct(stress(strain_m, mu, lam), strain(psi)) * dx
-        )  # <Cε_m(Π m),ε(ψ)>
+            K*K*InnerProduct(stress(strain_m, mu, lam), strain(psi)) * dx
+        )  # k^2<Cε_m(Π m),ε(ψ)>
         f_disp += (
             InnerProduct(disp_gfu - disp_gfu_prev, psi) * dx
         )  # k<d_t u^i, ψ> = <u^i - u^(i-1), ψ>
@@ -140,8 +140,8 @@ def FIRST_RUN_update_displacement(
 
         f_disp = LinearForm(fes_disp)
         f_disp += (
-            InnerProduct(stress(strain_m, mu, lam), strain(psi)) * dx
-        )  # <Cε_m(Π m),ε(ψ)>
+            K*K*InnerProduct(stress(strain_m, mu, lam), strain(psi)) * dx
+        )  # k^2<Cε_m(Π m),ε(ψ)>
         f_disp += K * InnerProduct(vel_gfu, psi) * dx  # k<d_t u^i, ψ>
         f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
         #f_disp += K * K * InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>

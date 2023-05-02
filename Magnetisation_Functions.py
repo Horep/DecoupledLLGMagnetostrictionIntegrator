@@ -181,7 +181,6 @@ def build_strain_m(mag_grid_func: GridFunction, lambda_m: float) -> CoefficientF
 def build_magnetic_lin_system(
     fes_mag: VectorH1,
     mag_gfu: GridFunction,
-    strain_m: MatrixValued,
     ALPHA: float,
     THETA: float,
     K: float,
@@ -208,14 +207,11 @@ def build_magnetic_lin_system(
         a_mag (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix.
         f_mag (ngsolve.comp.LinearForm): The 3Nx1 assembled force vector.
     """
-    # magstrain = build_strain_m(fes_eps_m, mag_gfu)
     # Test functions
     v = fes_mag.TrialFunction()
     phi = fes_mag.TestFunction()
     proj_mag = nodal_projection(mag_gfu, fes_mag)
-    magnetostrain = elfunc.magnetostriction_field(
-        Grad(disp_gfu), proj_mag, mu, lam, lambda_m
-    )
+    magnetostrain = elfunc.magnetostriction_field(Grad(disp_gfu), proj_mag, mu, lam, lambda_m)
     # Building the linear system for the magnetisation
     with TaskManager():
         a_mag = BilinearForm(fes_mag)
@@ -234,7 +230,6 @@ def build_magnetic_lin_system(
 def update_magnetisation(
     fes_mag: VectorH1,
     mag_gfu: GridFunction,
-    fes_eps_m: MatrixValued,
     ALPHA: float,
     THETA: float,
     K: float,
@@ -260,7 +255,7 @@ def update_magnetisation(
         mag_grid_func (ngsolve.comp.GridFunction): The new updated magnetisation at the next time step.
     """
     a_mag, f_mag = build_magnetic_lin_system(
-        fes_mag, mag_gfu, fes_eps_m, ALPHA, THETA, K, KAPPA, disp_gfu, mu, lam, lambda_m
+        fes_mag, mag_gfu, ALPHA, THETA, K, KAPPA, disp_gfu, mu, lam, lambda_m
     )
     B = build_tangent_plane_matrix(mag_gfu)
     v = give_magnetisation_update(a_mag, B, f_mag)
