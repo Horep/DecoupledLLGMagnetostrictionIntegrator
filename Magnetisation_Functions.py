@@ -37,7 +37,7 @@ def give_random_magnetisation(mag_grid_func: GridFunction) -> GridFunction:
     return mag_grid_func
 
 
-def give_uniform_magnetisation(mag_grid_func: GridFunction) -> GridFunction:
+def give_uniform_magnetisation(mag_grid_func: GridFunction, direction) -> GridFunction:
     """
     Returns a random normalised magnetisation grid function.
 
@@ -49,7 +49,8 @@ def give_uniform_magnetisation(mag_grid_func: GridFunction) -> GridFunction:
     """
     num_points = genfunc.get_num_nodes(mag_grid_func)
     mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
-    a, b, c = 2 * random() - 1, 2 * random() - 1, 2 * random() - 1
+    # a, b, c = 2 * random() - 1, 2 * random() - 1, 2 * random() - 1
+    a, b, c = direction[0], direction[1], direction[2]
     size = math.sqrt(a * a + b * b + c * c)
     try:
         a, b, c = a / size, b / size, c / size
@@ -211,7 +212,9 @@ def build_magnetic_lin_system(
     v = fes_mag.TrialFunction()
     phi = fes_mag.TestFunction()
     proj_mag = nodal_projection(mag_gfu, fes_mag)
-    magnetostrain = elfunc.magnetostriction_field(Grad(disp_gfu), proj_mag, mu, lam, lambda_m)
+    magnetostrain = elfunc.magnetostriction_field(
+        elfunc.strain(disp_gfu), proj_mag, mu, lam, lambda_m
+    )
     # Building the linear system for the magnetisation
     with TaskManager():
         a_mag = BilinearForm(fes_mag)
@@ -237,7 +240,7 @@ def update_magnetisation(
     disp_gfu,
     mu,
     lam,
-    lambda_m
+    lambda_m,
 ) -> GridFunction:
     """
     Updates a magnetisation vector with the new values.

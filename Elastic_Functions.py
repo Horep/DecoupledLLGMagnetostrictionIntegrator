@@ -45,6 +45,27 @@ def give_random_displacement(disp_grid_func: GridFunction) -> GridFunction:
     return disp_grid_func
 
 
+def give_uniform_displacement(disp_grid_func: GridFunction, direction) -> GridFunction:
+    """
+    Returns a random normalised magnetisation grid function.
+
+    Parameters:
+        mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
+
+    Returns:
+        mag_grid_func (ngsolve.comp.GridFunction): A uniform VectorH1 grid function with value in [-1,1]^3 and length 1 at each node.
+    """
+    num_points = genfunc.get_num_nodes(disp_grid_func)
+    disp_grid_funcx, disp_grid_funcy, disp_grid_funcz = disp_grid_func.components
+    # a, b, c = 2 * random() - 1, 2 * random() - 1, 2 * random() - 1
+    a, b, c = direction[0], direction[1], direction[2]
+    for i in range(num_points):
+        disp_grid_funcx.vec[i] = a
+        disp_grid_funcy.vec[i] = b
+        disp_grid_funcz.vec[i] = c
+    return disp_grid_func
+
+
 def update_displacement(
     fes_disp: VectorH1,
     disp_gfu: GridFunction,
@@ -84,14 +105,14 @@ def update_displacement(
 
         f_disp = LinearForm(fes_disp)
         f_disp += (
-            K*K*InnerProduct(stress(strain_m, mu, lam), strain(psi)) * dx
+            K * K * InnerProduct(stress(strain_m, mu, lam), strain(psi)) * dx
         )  # k^2<Cε_m(Π m),ε(ψ)>
         f_disp += (
             InnerProduct(disp_gfu - disp_gfu_prev, psi) * dx
         )  # k<d_t u^i, ψ> = <u^i - u^(i-1), ψ>
         f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
-        #f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
-        #f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
+        # f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
+        # f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
         a_disp.Assemble()
         f_disp.Assemble()
         new_disp.vec.data = (
@@ -140,12 +161,12 @@ def FIRST_RUN_update_displacement(
 
         f_disp = LinearForm(fes_disp)
         f_disp += (
-            K*K*InnerProduct(stress(strain_m, mu, lam), strain(psi)) * dx
+            K * K * InnerProduct(stress(strain_m, mu, lam), strain(psi)) * dx
         )  # k^2<Cε_m(Π m),ε(ψ)>
         f_disp += K * InnerProduct(vel_gfu, psi) * dx  # k<d_t u^i, ψ>
         f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
-        #f_disp += K * K * InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
-        #f_disp += K * K * InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
+        # f_disp += K * K * InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
+        # f_disp += K * K * InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
 
         a_disp.Assemble()
         f_disp.Assemble()
@@ -164,7 +185,7 @@ def elastic_energy(
     g_surface: CoefficientFunction,
     KAPPA: float,
     mu,
-    lam
+    lam,
 ) -> float:
     """
     >Uses the initial velocity condition instead of a difference quotient.<
@@ -181,10 +202,12 @@ def elastic_energy(
         KAPPA*energy (float): Elastic energy.
     """
     mystrain = strain_el(strain_m, disp_gfu)
-    vol_integrand = 0.5 * InnerProduct(stress(mystrain, mu, lam), mystrain) #- InnerProduct(f_body, disp_gfu)  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
-    #surf_integrand = InnerProduct(g_surface, disp_gfu)  # -<g,u>_BND
+    vol_integrand = 0.5 * InnerProduct(
+        stress(mystrain, mu, lam), mystrain
+    )  # - InnerProduct(f_body, disp_gfu)  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
+    # surf_integrand = InnerProduct(g_surface, disp_gfu)  # -<g,u>_BND
     energy = Integrate(vol_integrand, mesh, VOL)
-    #energy += -Integrate(surf_integrand, mesh, BND)
+    # energy += -Integrate(surf_integrand, mesh, BND)
     return KAPPA * energy
 
 
@@ -289,14 +312,14 @@ def Z_tensor(lambda_m: float) -> np.ndarray:
 
 
 def magnetostriction_field(
-    Gradu, proj_mag_gfu, mu, lam, lambda_m
+    strainu, proj_mag_gfu, mu, lam, lambda_m
 ) -> CoefficientFunction:
     """
     Takes in a displacement and magnetisation, and returns (assuming Z is symmetric, isotropic and isochoric)
     2 ZC[ε(u) - ε_m(Proj(m))] Proj(m)
     """
     strain_m = magfunc.build_strain_m(proj_mag_gfu, lambda_m)  # ε_m(Proj(m))
-    myStress = stress(Gradu - strain_m, mu, lam)  # C[ε(u) - ε_m(Proj(m))]
+    myStress = stress(strainu - strain_m, mu, lam)  # C[ε(u) - ε_m(Proj(m))]
     magStress = (
         3 * lambda_m / 2 * (myStress - Trace(myStress) * Id(3))
     )  #  ZC[ε(u) - ε_m(Proj(m))]
