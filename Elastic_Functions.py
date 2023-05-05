@@ -10,6 +10,9 @@ import Magnetisation_Functions as magfunc
 def strain(u):
     """
     Returns the total strain from (Grad(u) + Grad(u)^T) / 2.
+
+    Parameters:
+        u: A CoefficientFunction (GridFunction) or Test function.
     """
     return Sym(Grad(u))
 
@@ -21,27 +24,33 @@ def strain_el(strain_m, u):
     return strain(u) - strain_m
 
 
-def stress(strain, mu, lam):
+def stress(strain, mu: float, lam: float):
     """
     Returns the stress associated with (the isotropic) Hooke's law from a given strain.
+
+    Parameters:
+        strain : The symmetric gradient.
+        mu (float): The first lame coefficient.
+        lam (float): The second lame coefficient.
     """
     return 2 * mu * strain + lam * Trace(strain) * Id(3)
 
 
-def give_random_displacement(disp_grid_func: GridFunction) -> GridFunction:
+def give_random_displacement(disp_grid_func: GridFunction, magnitude: float=0.01) -> GridFunction:
     """
-    Returns a displacement grid function with random entries in [-0.1, 0.1].
+    Returns a displacement grid function with random entries in [-magnitude, magnitude].
 
     Parameters:
         disp_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
+        magnitude (float): The largest allowed size for any individual component. Set to 0.01.
 
     Returns:
-        disp_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function with randomised nodal values in [-0.1, 0.1]^3.
+        disp_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function with randomised nodal values in [-magnitude, magnitude]^3.
     """
     num_points = genfunc.get_num_nodes(disp_grid_func)
     disp_grid_func.vec.FV().NumPy()[:] = np.random.uniform(
-        -0.1, 0.1, 3 * num_points
-    ).flatten()  # 3N uniformly distributed points in [-0.1, 0.1]
+        -magnitude, magnitude, 3 * num_points
+    ).flatten()  # 3N uniformly distributed points in [-magnitude, magnitude]
     return disp_grid_func
 
 
@@ -51,6 +60,7 @@ def give_uniform_displacement(disp_grid_func: GridFunction, direction) -> GridFu
 
     Parameters:
         mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
+        direction (float,float,float): The vector (x,y,z) the displacement should have.
 
     Returns:
         mag_grid_func (ngsolve.comp.GridFunction): A uniform VectorH1 grid function with value in [-1,1]^3 and length 1 at each node.
@@ -111,8 +121,8 @@ def update_displacement(
             InnerProduct(disp_gfu - disp_gfu_prev, psi) * dx
         )  # k<d_t u^i, ψ> = <u^i - u^(i-1), ψ>
         f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
-        # f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
-        # f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
+        f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
+        f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
         a_disp.Assemble()
         f_disp.Assemble()
         new_disp.vec.data = (
@@ -165,8 +175,8 @@ def FIRST_RUN_update_displacement(
         )  # k^2<Cε_m(Π m),ε(ψ)>
         f_disp += K * InnerProduct(vel_gfu, psi) * dx  # k<d_t u^i, ψ>
         f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
-        # f_disp += K * K * InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
-        # f_disp += K * K * InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
+        f_disp += K * K * InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
+        f_disp += K * K * InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
 
         a_disp.Assemble()
         f_disp.Assemble()
@@ -202,12 +212,10 @@ def elastic_energy(
         KAPPA*energy (float): Elastic energy.
     """
     mystrain = strain_el(strain_m, disp_gfu)
-    vol_integrand = 0.5 * InnerProduct(
-        stress(mystrain, mu, lam), mystrain
-    )  # - InnerProduct(f_body, disp_gfu)  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
-    # surf_integrand = InnerProduct(g_surface, disp_gfu)  # -<g,u>_BND
+    vol_integrand = 0.5 * InnerProduct(stress(mystrain, mu, lam), mystrain)  - InnerProduct(f_body, disp_gfu)  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
+    surf_integrand = InnerProduct(g_surface, disp_gfu)  # -<g,u>_BND
     energy = Integrate(vol_integrand, mesh, VOL)
-    # energy += -Integrate(surf_integrand, mesh, BND)
+    energy += -Integrate(surf_integrand, mesh, BND)
     return KAPPA * energy
 
 

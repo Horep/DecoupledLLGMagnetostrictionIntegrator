@@ -225,7 +225,7 @@ def build_magnetic_lin_system(
 
         f_mag = LinearForm(fes_mag)
         f_mag += -InnerProduct(Grad(mag_gfu), Grad(phi)) * dx  # -<∇m,∇Φ>
-        f_mag += InnerProduct(magnetostrain, phi) * dx  # <h_m , Φ>
+        f_mag += KAPPA*InnerProduct(magnetostrain, phi) * dx  # <h_m , Φ>
         f_mag.Assemble()
     return a_mag, f_mag
 
@@ -293,3 +293,14 @@ def projected_magnetic_energy(mag_gfu: GridFunction, mesh: Mesh, fes_mag) -> flo
     return 0.5 * Integrate(
         InnerProduct(Grad(my_projection), Grad(my_projection)), mesh, VOL
     )
+
+
+def nodal_norm(mag_grid_func: GridFunction) -> float:
+    """
+    Returns the average magnitude of the nodal points.
+    """
+    #  Take all the degrees of freedom, square and sum them up. 
+    #  If each node has length 1, we should get n. 
+    #  We then multiply by 3/len(node_array) = 1/n to get the average.
+    node_array = mag_grid_func.vec.FV().NumPy()[:]
+    return 3*np.inner(node_array, node_array)/len(node_array)

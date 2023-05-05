@@ -44,13 +44,44 @@ def export_to_vtk_file(
     mesh: Mesh,
     export: bool = False,
     index: int = 0,
+    save_step: int = 1
 ):
+    """
+    Exports the magnetisation and displacement to a VTU file.
+    A VTK file is a legacy version of this format.
+
+    Parameters:
+        displacement (ngsolve.comp.GridFunction): The displacement to be exported.
+        magnetisation (ngsolve.comp.GridFunction): The magnetisation to be exported.
+        mesh (ngsolve.comp.Mesh): The mesh to be exported.
+        export (bool): Truth value as to whether or not the export should actually happen.
+        index (int): The index, used to denote which timestep the file should be labelled with, e.g. "the_result0.vtu, the_result1.vtu".
+        save_step (int): The output will only be saved at multiples of this index. Use 1 for every step, 2 for every other step, etc.
+    Returns:
+        None
+    """
     if export is False:
         return None
-    vtk = VTKOutput(
-        ma=mesh,
-        coefs=[displacement, magnetisation],
-        names=["displacement", "magnetisation"],
-        filename=f"the_result{index}",
-    )
-    vtk.Do()
+    elif index  % save_step == 0:
+        vtk = VTKOutput(
+            ma=mesh,
+            coefs=[displacement, magnetisation],
+            names=["displacement", "magnetisation"],
+            filename=f"the_result{index}",
+            )
+        vtk.Do()
+
+
+def calculate_KAPPA(density: float, exchange_length: float, gyromagnetic_ratio: float, mu_0: float) -> float:
+    """
+    Computes a parameter to describe the relative strength of the elastic and magnetic contributions to the fields and energy.
+    Parameters:
+        density (float): Density (kg/m^3).
+        exchange_length (float): Exchange length (m).
+        gyromagnetic_ratio (float): rad /(s T).
+        mu_0 (float): Permeability of free space (N / A^2).
+    
+    Returns:
+        KAPPA (float): The elastic/magnetic relative strength parameter (dimensionless).
+    """
+    return density * exchange_length**2 * gyromagnetic_ratio**2 * mu_0
