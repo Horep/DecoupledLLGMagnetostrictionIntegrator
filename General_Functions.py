@@ -52,10 +52,15 @@ def export_to_vtk_file(
 
     Parameters:
         displacement (ngsolve.comp.GridFunction): The displacement to be exported.
+
         magnetisation (ngsolve.comp.GridFunction): The magnetisation to be exported.
+
         mesh (ngsolve.comp.Mesh): The mesh to be exported.
+
         export (bool): Truth value as to whether or not the export should actually happen.
+
         index (int): The index, used to denote which timestep the file should be labelled with, e.g. "the_result0.vtu, the_result1.vtu".
+
         save_step (int): The output will only be saved at multiples of this index. Use 1 for every step, 2 for every other step, etc.
     Returns:
         None
@@ -77,11 +82,44 @@ def calculate_KAPPA(density: float, exchange_length: float, gyromagnetic_ratio: 
     Computes a parameter to describe the relative strength of the elastic and magnetic contributions to the fields and energy.
     Parameters:
         density (float): Density (kg/m^3).
+
         exchange_length (float): Exchange length (m).
+
         gyromagnetic_ratio (float): rad /(s T).
+
         mu_0 (float): Permeability of free space (N / A^2).
     
     Returns:
         KAPPA (float): The elastic/magnetic relative strength parameter (dimensionless).
     """
     return density * exchange_length**2 * gyromagnetic_ratio**2 * mu_0
+
+def stress_density_factor(KAPPA, mu_0, M_s):
+    """
+    Given a traction G in SI units (kg/s^2 m), divide G by the output of this function to get nondimensional g = G/output
+    """
+    return KAPPA*mu_0*M_s**2
+
+
+def force_density_factor(exchange_length, KAPPA, mu_0, M_s):
+    """
+    Given a force density F in SI units (kg/s^2 m^2), divide F by the output of this function to get nondimensional f = F/output
+    """
+    return stress_density_factor(KAPPA, mu_0, M_s)/exchange_length
+
+
+def force_density_grav(grav_accel, density, exchange_length, KAPPA, mu_0, M_s):
+    """
+    Returns the gravitational force density from rho*g/(force_density_factor). For downward force, input grav_accel as negative.
+    """
+    return density*grav_accel/force_density_factor(exchange_length, KAPPA, mu_0, M_s)
+
+
+def mu_lame_parameter(E, v, KAPPA, mu_0, M_s):
+    """
+    Returns mu,lambda from the Young's modulus E and Poisson's ratio v
+    """
+    mu = E/(2*(1+v))
+    lam = E*v/(1+v)
+    my_fac = stress_density_factor(KAPPA, mu_0, M_s)
+    return mu/my_fac, lam/my_fac
