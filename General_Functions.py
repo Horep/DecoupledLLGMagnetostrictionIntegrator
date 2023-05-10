@@ -115,7 +115,7 @@ def force_density_grav(grav_accel, density, exchange_length, KAPPA, mu_0, M_s):
     return density*grav_accel/force_density_factor(exchange_length, KAPPA, mu_0, M_s)
 
 
-def mu_lame_parameter(E, v, KAPPA, mu_0, M_s):
+def lame_parameters(E, v, KAPPA, mu_0, M_s):
     """
     Returns mu,lambda from the Young's modulus E and Poisson's ratio v
     """
@@ -123,3 +123,7 @@ def mu_lame_parameter(E, v, KAPPA, mu_0, M_s):
     lam = E*v/(1+v)
     my_fac = stress_density_factor(KAPPA, mu_0, M_s)
     return mu/my_fac, lam/my_fac
+
+
+def nondimensional_time(gyromagnetic, mu_0, M_s):
+    return gyromagnetic*mu_0*M_s

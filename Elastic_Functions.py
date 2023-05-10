@@ -5,6 +5,7 @@ import numpy as np
 import itertools
 import General_Functions as genfunc
 import Magnetisation_Functions as magfunc
+import time
 
 
 def strain(u):
@@ -123,12 +124,13 @@ def update_displacement(
         f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
         f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
         f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
-        a_disp.Assemble()
-        f_disp.Assemble()
+        time1 = time.time()
         new_disp.vec.data = (
-            a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky")
+            a_disp.mat.Inverse(fes_disp.FreeDofs())
             * f_disp.vec
         )
+        time2 = time.time()
+        print(f"Disp solved in {time2-time1}")
     return new_disp
 
 
@@ -177,13 +179,18 @@ def FIRST_RUN_update_displacement(
         f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
         f_disp += K * K * InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
         f_disp += K * K * InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
-
+        time1 = time.time()
+        print("Assembling a_disp")
         a_disp.Assemble()
+        print("Assembling f_disp")
         f_disp.Assemble()
+        time1 = time.time()
         new_disp.vec.data = (
-            a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky")
+            a_disp.mat.Inverse(fes_disp.FreeDofs())
             * f_disp.vec
         )
+        time2 = time.time()
+        print(f"Disp solved in {time2-time1}")
     return new_disp
 
 
