@@ -143,7 +143,7 @@ def give_magnetisation_update(
     # time1 = time.time()
     # vlam = scipy.sparse.linalg.spsolve(stiffness_block, force_block)
     time2 = time.time()
-    vlam, myinfo = scipy.sparse.linalg.gmres(stiffness_block, force_block, tol=1e-11, maxiter = 100_000_000, restart=100)
+    vlam, myinfo = scipy.sparse.linalg.gmres(stiffness_block, force_block, tol=1e-11, maxiter = 100_000_000, restart=100)  # these settings are quite extreme. Test to see if they can be lowered.
     time3 = time.time()
     # print(f"spsolve completed in {time2-time1}")
     v = np.asarray(vlam)[0 : 3 * N]
@@ -151,9 +151,9 @@ def give_magnetisation_update(
         B.dot(v), np.inf
     )  # in theory, the update should satisfy |Bv| = 0.
     print(f"gmres completed in {time3-time2}, info={myinfo}, residual = {residual}")
-    if residual > 1e-11:
+    if residual > 1e-8:
         print(
-            f"WARNING: |Bv| = {residual} > 1e-11. Tangent plane matrix B or update v may not be correctly calculated."
+            f"WARNING: |Bv| = {residual} > 1e-8. Tangent plane matrix B or update v may not be correctly calculated."
         )
     print(f"stiffness max = {np.amax(abs(stiffness_block.todense()))}")
     print(f"force max = {np.amax(abs(force_block))}")
@@ -226,8 +226,8 @@ def build_magnetic_lin_system(
         a_mag.Assemble()
         f_mag = LinearForm(fes_mag)
         f_mag += -InnerProduct(Grad(mag_gfu), Grad(phi)) * dx  # -<∇m,∇Φ>
-        #f_mag += KAPPA*InnerProduct(magnetostrain, phi) * dx  # <h_m , Φ>
-        f_mag += InnerProduct(phi, zeeman)*dx
+        f_mag += KAPPA*InnerProduct(magnetostrain, phi) * dx  # <h_m , Φ>
+        f_mag += InnerProduct(zeeman, phi)*dx  # <h_external , Φ>
         f_mag.Assemble()
     return a_mag, f_mag
 

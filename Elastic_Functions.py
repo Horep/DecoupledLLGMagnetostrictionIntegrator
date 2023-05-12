@@ -124,6 +124,8 @@ def update_displacement(
         f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
         f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
         f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
+        a_disp.Assemble()
+        f_disp.Assemble()
         time1 = time.time()
         new_disp.vec.data = (
             a_disp.mat.Inverse(fes_disp.FreeDofs())
@@ -338,4 +340,4 @@ def magnetostriction_field(
     magStress = (
         3 * lambda_m / 2 * (myStress - Trace(myStress) * Id(3))
     )  #  ZC[ε(u) - ε_m(Proj(m))]
-    return 2 * magStress * proj_mag_gfu
+    return 2 * magStress * proj_mag_gfu  # 2 ZC[ε(u) - ε_m(Proj(m))] Proj(m)
