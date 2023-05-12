@@ -191,6 +191,7 @@ def build_magnetic_lin_system(
     mu: float,
     lam: float,
     lambda_m: float,
+    zeeman: CoefficientFunction
 ):
     """
     Builds the variational formulation in terms of H1 components.
@@ -225,7 +226,8 @@ def build_magnetic_lin_system(
         a_mag.Assemble()
         f_mag = LinearForm(fes_mag)
         f_mag += -InnerProduct(Grad(mag_gfu), Grad(phi)) * dx  # -<∇m,∇Φ>
-        f_mag += KAPPA*InnerProduct(magnetostrain, phi) * dx  # <h_m , Φ>
+        #f_mag += KAPPA*InnerProduct(magnetostrain, phi) * dx  # <h_m , Φ>
+        f_mag += InnerProduct(phi, zeeman)*dx
         f_mag.Assemble()
     return a_mag, f_mag
 
@@ -241,6 +243,7 @@ def update_magnetisation(
     mu,
     lam,
     lambda_m,
+    zeeman
 ) -> GridFunction:
     """
     Updates a magnetisation vector with the new values.
@@ -258,7 +261,7 @@ def update_magnetisation(
         mag_grid_func (ngsolve.comp.GridFunction): The new updated magnetisation at the next time step.
     """
     a_mag, f_mag = build_magnetic_lin_system(
-        fes_mag, mag_gfu, ALPHA, THETA, K, KAPPA, disp_gfu, mu, lam, lambda_m
+        fes_mag, mag_gfu, ALPHA, THETA, K, KAPPA, disp_gfu, mu, lam, lambda_m, zeeman
     )
     B = build_tangent_plane_matrix(mag_gfu)
     v = give_magnetisation_update(a_mag, B, f_mag)
@@ -271,7 +274,7 @@ def update_magnetisation(
     return mag_gfu
 
 
-def magnetic_energy(mag_gfu: GridFunction, mesh: Mesh) -> float:
+def magnetic_energy(mag_gfu: GridFunction, mesh: Mesh, f_zeeman) -> float:
     """
     Returns 1/2 _/‾||∇m||^2 dx, integrated over the mesh.
     Parameters:
@@ -281,7 +284,8 @@ def magnetic_energy(mag_gfu: GridFunction, mesh: Mesh) -> float:
     Returns:
         magnetic_energy (float): The magnetic energy 1/2 _/‾||∇m||^2 dx.
     """
-    return 0.5 * Integrate(InnerProduct(Grad(mag_gfu), Grad(mag_gfu)), mesh, VOL)
+    integrand = 0.5*InnerProduct(Grad(mag_gfu), Grad(mag_gfu)) - InnerProduct(f_zeeman, mag_gfu)
+    return Integrate(integrand, mesh, VOL)
 
 
 def projected_magnetic_energy(mag_gfu: GridFunction, mesh: Mesh, fes_mag) -> float:
