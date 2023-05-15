@@ -44,7 +44,7 @@ def export_to_vtk_file(
     mesh: Mesh,
     export: bool = False,
     index: int = 0,
-    save_step: int = 1
+    save_step: int = 1,
 ):
     """
     Exports the magnetisation and displacement to a VTU file.
@@ -67,17 +67,19 @@ def export_to_vtk_file(
     """
     if export is False:
         return None
-    elif index  % save_step == 0:
+    elif index % save_step == 0:
         vtk = VTKOutput(
             ma=mesh,
             coefs=[displacement, magnetisation],
             names=["displacement", "magnetisation"],
             filename=f"the_result{index}",
-            )
+        )
         vtk.Do()
 
 
-def calculate_KAPPA(density: float, exchange_length: float, gyromagnetic_ratio: float, mu_0: float) -> float:
+def calculate_KAPPA(
+    density: float, exchange_length: float, gyromagnetic_ratio: float, mu_0: float
+) -> float:
     """
     Computes a parameter to describe the relative strength of the elastic and magnetic contributions to the fields and energy.
     Parameters:
@@ -88,42 +90,45 @@ def calculate_KAPPA(density: float, exchange_length: float, gyromagnetic_ratio: 
         gyromagnetic_ratio (float): rad /(s T).
 
         mu_0 (float): Permeability of free space (N / A^2).
-    
+
     Returns:
         KAPPA (float): The elastic/magnetic relative strength parameter (dimensionless).
     """
     return density * exchange_length**2 * gyromagnetic_ratio**2 * mu_0
 
+
 def stress_density_factor(KAPPA, mu_0, M_s):
     """
     Given a traction G in SI units (kg/s^2 m), divide G by the output of this function to get nondimensional g = G/output
     """
-    return KAPPA*mu_0*M_s**2
+    return KAPPA * mu_0 * M_s**2
 
 
 def force_density_factor(exchange_length, KAPPA, mu_0, M_s):
     """
     Given a force density F in SI units (kg/s^2 m^2), divide F by the output of this function to get nondimensional f = F/output
     """
-    return stress_density_factor(KAPPA, mu_0, M_s)/exchange_length
+    return stress_density_factor(KAPPA, mu_0, M_s) / exchange_length
 
 
 def force_density_grav(grav_accel, density, exchange_length, KAPPA, mu_0, M_s):
     """
     Returns the gravitational force density from rho*g/(force_density_factor). For downward force, input grav_accel as negative.
     """
-    return density*grav_accel/force_density_factor(exchange_length, KAPPA, mu_0, M_s)
+    return (
+        density * grav_accel / force_density_factor(exchange_length, KAPPA, mu_0, M_s)
+    )
 
 
 def lame_parameters(E, v, KAPPA, mu_0, M_s):
     """
     Returns mu,lambda from the Young's modulus E and Poisson's ratio v
     """
-    mu = E/(2*(1+v))
-    lam = E*v/(1+v)
+    mu = E / (2 * (1 + v))
+    lam = E * v / (1 + v)
     my_fac = stress_density_factor(KAPPA, mu_0, M_s)
-    return mu/my_fac, lam/my_fac
+    return mu / my_fac, lam / my_fac
 
 
 def nondimensional_time(gyromagnetic, mu_0, M_s):
-    return gyromagnetic*mu_0*M_s
+    return gyromagnetic * mu_0 * M_s

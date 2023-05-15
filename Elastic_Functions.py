@@ -37,7 +37,9 @@ def stress(strain, mu: float, lam: float):
     return 2 * mu * strain + lam * Trace(strain) * Id(3)
 
 
-def give_random_displacement(disp_grid_func: GridFunction, magnitude: float=0.01) -> GridFunction:
+def give_random_displacement(
+    disp_grid_func: GridFunction, magnitude: float = 0.01
+) -> GridFunction:
     """
     Returns a displacement grid function with random entries in [-magnitude, magnitude].
 
@@ -127,10 +129,7 @@ def update_displacement(
         a_disp.Assemble()
         f_disp.Assemble()
         time1 = time.time()
-        new_disp.vec.data = (
-            a_disp.mat.Inverse(fes_disp.FreeDofs())
-            * f_disp.vec
-        )
+        new_disp.vec.data = a_disp.mat.Inverse(fes_disp.FreeDofs()) * f_disp.vec
         time2 = time.time()
         print(f"Disp solved in {time2-time1}")
     return new_disp
@@ -187,10 +186,7 @@ def FIRST_RUN_update_displacement(
         print("Assembling f_disp")
         f_disp.Assemble()
         time1 = time.time()
-        new_disp.vec.data = (
-            a_disp.mat.Inverse(fes_disp.FreeDofs())
-            * f_disp.vec
-        )
+        new_disp.vec.data = a_disp.mat.Inverse(fes_disp.FreeDofs()) * f_disp.vec
         time2 = time.time()
         print(f"Disp solved in {time2-time1}")
     return new_disp
@@ -221,7 +217,11 @@ def elastic_energy(
         KAPPA*energy (float): Elastic energy.
     """
     mystrain = strain_el(strain_m, disp_gfu)
-    vol_integrand = 0.5 * InnerProduct(stress(mystrain, mu, lam), mystrain)  - InnerProduct(f_body, disp_gfu)  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
+    vol_integrand = 0.5 * InnerProduct(
+        stress(mystrain, mu, lam), mystrain
+    ) - InnerProduct(
+        f_body, disp_gfu
+    )  # 1/2 <Cε_el(m,u), ε_el(m,u)> - <f,u>
     surf_integrand = InnerProduct(g_surface, disp_gfu)  # -<g,u>_BND
     energy = Integrate(vol_integrand, mesh, VOL)
     energy += -Integrate(surf_integrand, mesh, BND)
@@ -338,6 +338,11 @@ def magnetostriction_field(
     strain_m = magfunc.build_strain_m(proj_mag_gfu, lambda_m)  # ε_m(Proj(m))
     myStress = stress(strainu - strain_m, mu, lam)  # C[ε(u) - ε_m(Proj(m))]
     magStress = (
-        3 * lambda_m / 2 * (myStress - Trace(myStress) * Id(3)/3)  # was previously missing a factor of 1/3 in the Id(3) term
+        3
+        * lambda_m
+        / 2
+        * (
+            myStress - Trace(myStress) * Id(3) / 3
+        )  # was previously missing a factor of 1/3 in the Id(3) term
     )  #  ZC[ε(u) - ε_m(Proj(m))]
     return 2 * magStress * proj_mag_gfu  # 2 ZC[ε(u) - ε_m(Proj(m))] Proj(m)

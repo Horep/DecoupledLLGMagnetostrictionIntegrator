@@ -143,7 +143,9 @@ def give_magnetisation_update(
     # time1 = time.time()
     # vlam = scipy.sparse.linalg.spsolve(stiffness_block, force_block)
     time2 = time.time()
-    vlam, myinfo = scipy.sparse.linalg.gmres(stiffness_block, force_block, tol=1e-11, maxiter = 100_000_000, restart=100)  # these settings are quite extreme. Test to see if they can be lowered.
+    vlam, myinfo = scipy.sparse.linalg.gmres(
+        stiffness_block, force_block, tol=1e-11
+    )  # these settings are quite extreme. Test to see if they can be lowered.
     time3 = time.time()
     # print(f"spsolve completed in {time2-time1}")
     v = np.asarray(vlam)[0 : 3 * N]
@@ -191,7 +193,7 @@ def build_magnetic_lin_system(
     mu: float,
     lam: float,
     lambda_m: float,
-    zeeman: CoefficientFunction
+    zeeman: CoefficientFunction,
 ):
     """
     Builds the variational formulation in terms of H1 components.
@@ -226,8 +228,8 @@ def build_magnetic_lin_system(
         a_mag.Assemble()
         f_mag = LinearForm(fes_mag)
         f_mag += -InnerProduct(Grad(mag_gfu), Grad(phi)) * dx  # -<∇m,∇Φ>
-        f_mag += KAPPA*InnerProduct(magnetostrain, phi) * dx  # <h_m , Φ>
-        f_mag += InnerProduct(zeeman, phi)*dx  # <h_external , Φ>
+        f_mag += KAPPA * InnerProduct(magnetostrain, phi) * dx  # <h_m , Φ>
+        f_mag += InnerProduct(zeeman, phi) * dx  # <h_external , Φ>
         f_mag.Assemble()
     return a_mag, f_mag
 
@@ -243,7 +245,7 @@ def update_magnetisation(
     mu,
     lam,
     lambda_m,
-    zeeman
+    zeeman,
 ) -> GridFunction:
     """
     Updates a magnetisation vector with the new values.
@@ -284,7 +286,9 @@ def magnetic_energy(mag_gfu: GridFunction, mesh: Mesh, f_zeeman) -> float:
     Returns:
         magnetic_energy (float): The magnetic energy 1/2 _/‾||∇m||^2 dx.
     """
-    integrand = 0.5*InnerProduct(Grad(mag_gfu), Grad(mag_gfu)) - InnerProduct(f_zeeman, mag_gfu)
+    integrand = 0.5 * InnerProduct(Grad(mag_gfu), Grad(mag_gfu)) - InnerProduct(
+        f_zeeman, mag_gfu
+    )
     return Integrate(integrand, mesh, VOL)
 
 
@@ -303,8 +307,8 @@ def nodal_norm(mag_grid_func: GridFunction) -> float:
     """
     Returns the average magnitude of the nodal points.
     """
-    #  Take all the degrees of freedom, square and sum them up. 
-    #  If each node has length 1, we should get n. 
+    #  Take all the degrees of freedom, square and sum them up.
+    #  If each node has length 1, we should get n.
     #  We then multiply by 3/len(node_array) = 1/n to get the average.
     node_array = mag_grid_func.vec.FV().NumPy()[:]
-    return 3*np.inner(node_array, node_array)/len(node_array)
+    return 3 * np.inner(node_array, node_array) / len(node_array)
