@@ -338,6 +338,6 @@ def magnetostriction_field(
     strain_m = magfunc.build_strain_m(proj_mag_gfu, lambda_m)  # ε_m(Proj(m))
     myStress = stress(strainu - strain_m, mu, lam)  # C[ε(u) - ε_m(Proj(m))]
     magStress = (
-        3 * lambda_m / 2 * (myStress - Trace(myStress) * Id(3))
+        3 * lambda_m / 2 * (myStress - Trace(myStress) * Id(3)/3)  # was previously missing a factor of 1/3 in the Id(3) term
     )  #  ZC[ε(u) - ε_m(Proj(m))]
     return 2 * magStress * proj_mag_gfu  # 2 ZC[ε(u) - ε_m(Proj(m))] Proj(m)
