@@ -116,7 +116,7 @@ def build_tangent_plane_matrix(
 
 
 def give_magnetisation_update(
-    A: BilinearForm, B: scipy.sparse.csr.csr_matrix, F: LinearForm
+    A: BilinearForm, B: scipy.sparse.csr.csr_matrix, F: LinearForm, A_FIXED: BilinearForm
 ) -> np.ndarray:
     """
     Returns the tangent plane update v^(i) to the magnetisation such that m^(i+1) = m^(i) + v^(i).
@@ -133,6 +133,9 @@ def give_magnetisation_update(
     #  Converting to dense is bad for performance.
     rows, cols, vals = A.mat.COO()
     A = scipy.sparse.csr_matrix((vals, (rows, cols)))
+    rows, cols, vals = A_FIXED.mat.COO()
+    A_FIXED = scipy.sparse.csr_matrix((vals, (rows, cols)))
+    A += A_FIXED
     F = F.vec.FV().NumPy()[:]
     assert len(F) % 3 == 0, "The force vector is not a multiple of three, very bad."
     N = len(F) // 3
@@ -182,6 +185,20 @@ def build_strain_m(mag_grid_func: GridFunction, lambda_m: float) -> CoefficientF
     return mymatrix
 
 
+def build_fixed_mag(fes_mag: VectorH1, ALPHA:float, THETA:float, K:float) -> BilinearForm:
+    """
+    Computes the fixed matrix sum of the mass and stiffness matrix for the magnetisation.
+    """
+    with TaskManager():
+        v = fes_mag.TrialFunction()
+        phi = fes_mag.TestFunction()
+        a_mag_fixed = BilinearForm(fes_mag)
+        a_mag_fixed += ALPHA * InnerProduct(v, phi) * dx  # α<v,Φ>
+        a_mag_fixed += THETA * K * InnerProduct(Grad(v), Grad(phi)) * dx  # θk<∇v,∇Φ>
+        a_mag_fixed.Assemble()
+    return a_mag_fixed
+
+
 def build_magnetic_lin_system(
     fes_mag: VectorH1,
     mag_gfu: GridFunction,
@@ -222,8 +239,6 @@ def build_magnetic_lin_system(
     # Building the linear system for the magnetisation
     with TaskManager():
         a_mag = BilinearForm(fes_mag)
-        a_mag += ALPHA * InnerProduct(v, phi) * dx  # α<v,Φ>
-        a_mag += THETA * K * InnerProduct(Grad(v), Grad(phi)) * dx  # θk<∇v,∇Φ>
         a_mag += InnerProduct(Cross(mag_gfu, v), phi) * dx  # <m×v,Φ>
         a_mag.Assemble()
         f_mag = LinearForm(fes_mag)
@@ -246,6 +261,7 @@ def update_magnetisation(
     lam,
     lambda_m,
     zeeman,
+    a_mag_fixed,
 ) -> GridFunction:
     """
     Updates a magnetisation vector with the new values.
@@ -266,7 +282,7 @@ def update_magnetisation(
         fes_mag, mag_gfu, ALPHA, THETA, K, KAPPA, disp_gfu, mu, lam, lambda_m, zeeman
     )
     B = build_tangent_plane_matrix(mag_gfu)
-    v = give_magnetisation_update(a_mag, B, f_mag)
+    v = give_magnetisation_update(a_mag, B, f_mag, a_mag_fixed)
     print(f"biggest update = {K*np.amax(v)}")
     N = genfunc.get_num_nodes(mag_gfu)
     mag_gfux, mag_gfuy, mag_gfuz = mag_gfu.components
