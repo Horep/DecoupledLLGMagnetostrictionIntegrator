@@ -323,8 +323,7 @@ def nodal_norm(mag_grid_func: GridFunction) -> float:
     """
     Returns the average magnitude of the nodal points.
     """
-    #  Take all the degrees of freedom, square and sum them up.
-    #  If each node has length 1, we should get n.
-    #  We then multiply by 3/len(node_array) = 1/n to get the average.
-    node_array = mag_grid_func.vec.FV().NumPy()[:]
-    return 3 * np.inner(node_array, node_array) / len(node_array)
+    mag_x, mag_y, mag_z = mag_grid_func.components
+    node_x, node_y, node_z = mag_x.vec.FV().NumPy()[:], mag_y.vec.FV().NumPy()[:], mag_z.vec.FV().NumPy()[:]
+    magnitudes = np.sqrt(node_x**2 + node_y**2 + node_z**2)
+    return np.amax(magnitudes)
