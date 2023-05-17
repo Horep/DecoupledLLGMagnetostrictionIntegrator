@@ -143,14 +143,13 @@ def give_magnetisation_update(
     #  Throw away last N terms as these are the lagrange multipliers enforcing the tangent plane.
     stiffness_block = scipy.sparse.bmat([[A, B.transpose()], [B, None]], format="csr")
     force_block = np.concatenate((F, np.zeros(N)), axis=0)
-    # time1 = time.time()
-    # vlam = scipy.sparse.linalg.spsolve(stiffness_block, force_block)
     time2 = time.time()
+    M2 = scipy.sparse.linalg.spilu(stiffness_block)  # spilu preconditioner used in GMRES algorithm below.
+    M = scipy.sparse.linalg.LinearOperator((4*N,4*N), M2.solve)
     vlam, myinfo = scipy.sparse.linalg.gmres(
-        stiffness_block, force_block, tol=1e-11
-    )  # these settings are quite extreme. Test to see if they can be lowered.
+        stiffness_block, force_block, tol=1e-11, M=M
+    )
     time3 = time.time()
-    # print(f"spsolve completed in {time2-time1}")
     v = np.asarray(vlam)[0 : 3 * N]
     residual = np.linalg.norm(
         B.dot(v), np.inf
@@ -321,7 +320,7 @@ def projected_magnetic_energy(mag_gfu: GridFunction, mesh: Mesh, fes_mag) -> flo
 
 def nodal_norm(mag_grid_func: GridFunction) -> float:
     """
-    Returns the average magnitude of the nodal points.
+    Returns the maximum magnitude of the nodal points.
     """
     mag_x, mag_y, mag_z = mag_grid_func.components
     node_x, node_y, node_z = mag_x.vec.FV().NumPy()[:], mag_y.vec.FV().NumPy()[:], mag_z.vec.FV().NumPy()[:]
