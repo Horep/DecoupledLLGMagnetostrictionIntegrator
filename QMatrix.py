@@ -132,13 +132,13 @@ def give_q_magnetisation_update(
         stiffness_block
     )  # spilu preconditioner used in GMRES algorithm below.
     M = scipy.sparse.linalg.LinearOperator((2 * N, 2 * N), M2.solve)
-    v, myinfo = scipy.sparse.linalg.gmres(stiffness_block, force_block, tol=1e-11, M=M)
+    z, myinfo = scipy.sparse.linalg.gmres(stiffness_block, force_block, tol=1e-8, M=M)
     time3 = time.time()
-    v = Q.T * v
+    v = Q.T * z
     residual = np.linalg.norm(
         B.dot(v), np.inf
     )  # in theory, the update should satisfy |Bv| = 0.
-    print(f"Q gmres completed in {time3-time2}, info={myinfo}, residual = {residual}")
+    print(f"Q GMRES completed in {time3-time2}, info={myinfo}, residual = {residual}")
     if residual > 1e-8:
         print(
             f"WARNING: |Bv| = {residual} > 1e-8. Tangent plane matrix B or update v may not be correctly calculated."
