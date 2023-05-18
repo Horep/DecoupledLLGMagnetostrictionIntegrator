@@ -9,12 +9,16 @@ def qmatrix(mag_grid_func: GridFunction):
     column_m = np.column_stack((m1, m2, m3))
 
     out_array = q_basis(column_m)
-    return out_array
+    block_me_please = []
+    for i in [0, 1, 2]:
+        block_me_please.append(q_block(out_array[:,i]))
+    my_qmatrix = scipy.sparse.bmat([block_me_please], format="csr")
+    return my_qmatrix
 
 
 def q_basis(m: np.ndarray):
     """
-    Given a magnetisation node m = [[m1(z_1), m2(z_1), m3(z_1)],
+    Given a magnetisation vector m = [[m1(z_1), m2(z_1), m3(z_1)],
                                     [m1(z_2), m2(z_2), m3(z_2)],
                                     ...,
                                     [m1(z_N), m2(z_N), m3(z_N)]], 
@@ -39,6 +43,8 @@ def q_basis(m: np.ndarray):
 def basis_choice(u: float, v: float, w: float, index: int):
     """
     We use notation from Ramage 2013 during this section. Given an input magnetisation vector n=[u,v,w]^T, return two vectors L,M such that (n,L,M) is an orthonormal basis.
+    This is slow due to the use of if/else statements, which check each row.
+    It may be possible to vectorize.
     """
     if index == 0:
         square = v*v + w*w
@@ -60,8 +66,22 @@ def basis_choice(u: float, v: float, w: float, index: int):
         return L, M
 
 
-def Q_block(my_vec, N):
-    cols = np.repeat(np.arange(N+1), 2)  # looks like [0,0,1,1,...,N,N]
-    rows = np.arange(2*N+1)  # looks like [0,1,2,3,...,2N]
-    
-    return None
+def q_block(my_vec):
+    """
+    Given a column of the form   = [[L1],
+                                    [M1],
+                                    ...,
+                                    [LN]
+                                    [MN]], 
+    returns a sparse block of size 2N*N with the ith column having the 2i-1 and 2i positions
+    filled with the i and i+1 elements of the vector
+    """
+    assert len(my_vec) %2 == 0
+    N = len(my_vec) //2
+    cols = np.repeat(np.arange(N), 2)  # looks like [0,0,1,1,...,N-1,N-1]
+    rows = np.arange(2*N)  # looks like [0,1,2,3,...,2N-1]
+    print(N)
+    print(len(cols))
+    print(len(rows))
+    the_q_block = scipy.sparse.csr_matrix((my_vec, (rows, cols)))
+    return the_q_block
