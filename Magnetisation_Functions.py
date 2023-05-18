@@ -7,6 +7,7 @@ import scipy.sparse.linalg
 import matplotlib.pyplot as plt
 import General_Functions as genfunc
 import Elastic_Functions as elfunc
+import QMatrix
 import time
 
 
@@ -116,7 +117,10 @@ def build_tangent_plane_matrix(
 
 
 def give_magnetisation_update(
-    A: BilinearForm, B: scipy.sparse.csr.csr_matrix, F: LinearForm, A_FIXED: BilinearForm
+    A: BilinearForm,
+    B: scipy.sparse.csr.csr_matrix,
+    F: LinearForm,
+    A_FIXED: BilinearForm,
 ) -> np.ndarray:
     """
     Returns the tangent plane update v^(i) to the magnetisation such that m^(i+1) = m^(i) + v^(i).
@@ -144,8 +148,10 @@ def give_magnetisation_update(
     stiffness_block = scipy.sparse.bmat([[A, B.transpose()], [B, None]], format="csr")
     force_block = np.concatenate((F, np.zeros(N)), axis=0)
     time2 = time.time()
-    M2 = scipy.sparse.linalg.spilu(stiffness_block)  # spilu preconditioner used in GMRES algorithm below.
-    M = scipy.sparse.linalg.LinearOperator((4*N,4*N), M2.solve)
+    M2 = scipy.sparse.linalg.spilu(
+        stiffness_block
+    )  # spilu preconditioner used in GMRES algorithm below.
+    M = scipy.sparse.linalg.LinearOperator((4 * N, 4 * N), M2.solve)
     vlam, myinfo = scipy.sparse.linalg.gmres(
         stiffness_block, force_block, tol=1e-11, M=M
     )
@@ -154,13 +160,11 @@ def give_magnetisation_update(
     residual = np.linalg.norm(
         B.dot(v), np.inf
     )  # in theory, the update should satisfy |Bv| = 0.
-    print(f"gmres completed in {time3-time2}, info={myinfo}, residual = {residual}")
+    print(f"q GMRES completed in {time3-time2}, info={myinfo}, residual = {residual}")
     if residual > 1e-8:
         print(
             f"WARNING: |Bv| = {residual} > 1e-8. Tangent plane matrix B or update v may not be correctly calculated."
         )
-    print(f"stiffness max = {np.amax(abs(stiffness_block.todense()))}")
-    print(f"force max = {np.amax(abs(force_block))}")
     return v
 
 
@@ -184,7 +188,9 @@ def build_strain_m(mag_grid_func: GridFunction, lambda_m: float) -> CoefficientF
     return mymatrix
 
 
-def build_fixed_mag(fes_mag: VectorH1, ALPHA:float, THETA:float, K:float) -> BilinearForm:
+def build_fixed_mag(
+    fes_mag: VectorH1, ALPHA: float, THETA: float, K: float
+) -> BilinearForm:
     """
     Computes the fixed matrix sum of the mass and stiffness matrix for the magnetisation.
     """
@@ -281,7 +287,8 @@ def update_magnetisation(
         fes_mag, mag_gfu, ALPHA, THETA, K, KAPPA, disp_gfu, mu, lam, lambda_m, zeeman
     )
     B = build_tangent_plane_matrix(mag_gfu)
-    v = give_magnetisation_update(a_mag, B, f_mag, a_mag_fixed)
+    Q = QMatrix.qmatrix(mag_gfu)
+    v = QMatrix.give_q_magnetisation_update(a_mag, B, f_mag, a_mag_fixed, Q)
     print(f"biggest update = {K*np.amax(v)}")
     N = genfunc.get_num_nodes(mag_gfu)
     mag_gfux, mag_gfuy, mag_gfuz = mag_gfu.components
@@ -323,6 +330,10 @@ def nodal_norm(mag_grid_func: GridFunction) -> float:
     Returns the maximum magnitude of the nodal points.
     """
     mag_x, mag_y, mag_z = mag_grid_func.components
-    node_x, node_y, node_z = mag_x.vec.FV().NumPy()[:], mag_y.vec.FV().NumPy()[:], mag_z.vec.FV().NumPy()[:]
+    node_x, node_y, node_z = (
+        mag_x.vec.FV().NumPy()[:],
+        mag_y.vec.FV().NumPy()[:],
+        mag_z.vec.FV().NumPy()[:],
+    )
     magnitudes = np.sqrt(node_x**2 + node_y**2 + node_z**2)
     return np.amax(magnitudes)
