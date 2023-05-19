@@ -115,7 +115,6 @@ def update_displacement(
         a_disp += (
             K * K * InnerProduct(stress(strain(u), mu, lam), strain(psi)) * dx
         )  # k^2<Cε(u), ε(ψ)>
-
         f_disp = LinearForm(fes_disp)
         f_disp += (
             K * K * InnerProduct(stress(strain_m, mu, lam), strain(psi)) * dx
@@ -129,7 +128,10 @@ def update_displacement(
         a_disp.Assemble()
         f_disp.Assemble()
         time1 = time.time()
-        new_disp.vec.data = a_disp.mat.Inverse(fes_disp.FreeDofs()) * f_disp.vec
+        new_disp.vec.data = (
+            a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky")
+            * f_disp.vec
+        )
         time2 = time.time()
         print(f"Disp solved in {time2-time1}")
     return new_disp

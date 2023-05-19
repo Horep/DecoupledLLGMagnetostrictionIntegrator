@@ -194,12 +194,13 @@ def build_fixed_mag(
     """
     Computes the fixed matrix sum of the mass and stiffness matrix for the magnetisation.
     """
+    massLumping = IntegrationRule(points = [(0,0,0), (1,0,0), (0,1,0), (0,0,1)], weights = [1/24, 1/24, 1/24, 1/24])  # use mass lumping approach for integration
     with TaskManager():
         v = fes_mag.TrialFunction()
         phi = fes_mag.TestFunction()
         a_mag_fixed = BilinearForm(fes_mag)
-        a_mag_fixed += ALPHA * InnerProduct(v, phi) * dx  # α<v,Φ>
-        a_mag_fixed += THETA * K * InnerProduct(Grad(v), Grad(phi)) * dx  # θk<∇v,∇Φ>
+        a_mag_fixed += SymbolicBFI(ALPHA * InnerProduct(v, phi), intrule=massLumping)  # α<v,Φ>
+        a_mag_fixed += SymbolicBFI( THETA * K * InnerProduct(Grad(v), Grad(phi)), intrule=massLumping)  # θk<∇v,∇Φ>
         a_mag_fixed.Assemble()
     return a_mag_fixed
 

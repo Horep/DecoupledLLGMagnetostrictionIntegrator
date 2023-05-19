@@ -2,6 +2,7 @@ from ngsolve import *
 from random import random
 import math
 import numpy as np
+from datetime import timedelta
 
 
 def get_num_nodes(grid_func: GridFunction) -> int:
@@ -132,3 +133,7 @@ def lame_parameters(E, v, KAPPA, mu_0, M_s):
 
 def nondimensional_time(gyromagnetic, mu_0, M_s):
     return gyromagnetic * mu_0 * M_s
+
+
+def est_time_remaining(num_steps: int, index: int, time_dif: int):
+    return timedelta(seconds=(num_steps - index) * time_dif)
