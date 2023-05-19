@@ -3,9 +3,11 @@ import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg
 import time
+import Magnetisation_Functions as magfunc
+import General_Functions as genfunc
 
 
-def qmatrix(mag_grid_func: GridFunction) -> scipy.sparse.csr.csr_matrix:
+def qmatrix(mag_gfu: GridFunction, fes_mag) -> scipy.sparse.csr.csr_matrix:
     """
     Parameters:
         mag_grid_func (GridFunction): The magnetisation degrees of freedom.
@@ -14,6 +16,7 @@ def qmatrix(mag_grid_func: GridFunction) -> scipy.sparse.csr.csr_matrix:
         Q (scipy.sparse.csr.csr_matrix): A 2*N by 3*N matrix for use in the null space method solver.
         Even rows should contain up to two non-zero elements, and odd rows should contain up to three non-zero elements
     """
+    mag_grid_func = magfunc.nodal_projection(mag_gfu, fes_mag)
     m1, m2, m3 = mag_grid_func.components
     m1, m2, m3 = m1.vec.FV().NumPy(), m2.vec.FV().NumPy(), m3.vec.FV().NumPy()
     column_m = np.column_stack(
@@ -99,7 +102,8 @@ def give_q_magnetisation_update(
     A: BilinearForm,
     B: np.ndarray,
     F: LinearForm,
-    A_FIXED: BilinearForm,
+    M_FIXED: BilinearForm,
+    L_FIXED: BilinearForm,
     Q: scipy.sparse.csr.csr_matrix,
 ) -> np.ndarray:
     """
@@ -117,9 +121,11 @@ def give_q_magnetisation_update(
     #  Converting to dense is bad for performance.
     rows, cols, vals = A.mat.COO()
     A = scipy.sparse.csr_matrix((vals, (rows, cols)))
-    rows, cols, vals = A_FIXED.mat.COO()
-    A_FIXED = scipy.sparse.csr_matrix((vals, (rows, cols)))
-    A += A_FIXED
+    rows, cols, vals = M_FIXED.mat.COO()
+    M_FIXED = scipy.sparse.csr_matrix((vals, (rows, cols)))
+    rows, cols, vals = L_FIXED.mat.COO()
+    L_FIXED = scipy.sparse.csr_matrix((vals, (rows, cols)))
+    A += M_FIXED + L_FIXED
     F = F.vec.FV().NumPy()[:]
     assert len(F) % 3 == 0, "The force vector is not a multiple of three, very bad."
     N = len(F) // 3
@@ -127,11 +133,12 @@ def give_q_magnetisation_update(
     #  Throw away last N terms as these are the lagrange multipliers enforcing the tangent plane.
     stiffness_block = Q * A * Q.T
     force_block = Q * F
+    my_precon = Q*genfunc.diagonal_sparse_inv(M_FIXED+L_FIXED) * Q.T
     time2 = time.time()
     M2 = scipy.sparse.linalg.spilu(
         stiffness_block
     )  # spilu preconditioner used in GMRES algorithm below.
-    M = scipy.sparse.linalg.LinearOperator((2 * N, 2 * N), M2.solve)
+    M = scipy.sparse.linalg.LinearOperator((2 * N, 2 * N), my_precon.solve)
     z, myinfo = scipy.sparse.linalg.gmres(stiffness_block, force_block, tol=1e-8, M=M)
     time3 = time.time()
     v = Q.T * z

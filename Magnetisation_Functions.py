@@ -198,11 +198,13 @@ def build_fixed_mag(
     with TaskManager():
         v = fes_mag.TrialFunction()
         phi = fes_mag.TestFunction()
-        a_mag_fixed = BilinearForm(fes_mag)
-        a_mag_fixed += SymbolicBFI(ALPHA * InnerProduct(v, phi), intrule=massLumping)  # α<v,Φ>
-        a_mag_fixed += SymbolicBFI( THETA * K * InnerProduct(Grad(v), Grad(phi)), intrule=massLumping)  # θk<∇v,∇Φ>
-        a_mag_fixed.Assemble()
-    return a_mag_fixed
+        M_mag_fixed = BilinearForm(fes_mag)
+        L_mag_fixed = BilinearForm(fes_mag)
+        M_mag_fixed += SymbolicBFI(ALPHA * InnerProduct(v, phi), intrule=massLumping)  # α<v,Φ>
+        L_mag_fixed += SymbolicBFI( THETA * K * InnerProduct(Grad(v), Grad(phi)), intrule=massLumping)  # θk<∇v,∇Φ>
+        M_mag_fixed.Assemble()
+        L_mag_fixed.Assemble()
+    return M_mag_fixed, L_mag_fixed
 
 
 def build_magnetic_lin_system(
@@ -267,7 +269,8 @@ def update_magnetisation(
     lam,
     lambda_m,
     zeeman,
-    a_mag_fixed,
+    M_mag_fixed,
+    L_mag_fixed,
 ) -> GridFunction:
     """
     Updates a magnetisation vector with the new values.
@@ -288,8 +291,8 @@ def update_magnetisation(
         fes_mag, mag_gfu, ALPHA, THETA, K, KAPPA, disp_gfu, mu, lam, lambda_m, zeeman
     )
     B = build_tangent_plane_matrix(mag_gfu)
-    Q = QMatrix.qmatrix(mag_gfu)
-    v = QMatrix.give_q_magnetisation_update(a_mag, B, f_mag, a_mag_fixed, Q)
+    Q = QMatrix.qmatrix(mag_gfu, fes_mag)
+    v = QMatrix.give_q_magnetisation_update(a_mag, B, f_mag, M_mag_fixed, L_mag_fixed, Q, K)
     print(f"biggest update = {K*np.amax(v)}")
     N = genfunc.get_num_nodes(mag_gfu)
     mag_gfux, mag_gfuy, mag_gfuz = mag_gfu.components

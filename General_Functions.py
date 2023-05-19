@@ -3,7 +3,7 @@ from random import random
 import math
 import numpy as np
 from datetime import timedelta
-
+import scipy
 
 def get_num_nodes(grid_func: GridFunction) -> int:
     """
@@ -137,3 +137,12 @@ def nondimensional_time(gyromagnetic, mu_0, M_s):
 
 def est_time_remaining(num_steps: int, index: int, time_dif: int):
     return timedelta(seconds=(num_steps - index) * time_dif)
+
+
+def diagonal_sparse_inv(diagonal):
+    """
+    Computes the inverse of a diagonal matrix, and returns a sparse representation of the inverse.
+    Should be quicker than the standard inverse, but should not be used on anything that is not a diagonal matrix.
+    We do not check if it is a diagonal matrix in the interest of speed.
+    """
+    return scipy.sparse.diags(1/diagonal.diagonal())
