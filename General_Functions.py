@@ -5,6 +5,7 @@ import numpy as np
 from datetime import timedelta
 import scipy
 
+
 def get_num_nodes(grid_func: GridFunction) -> int:
     """
     Returns the number of nodes within the grid function.
@@ -53,15 +54,10 @@ def export_to_vtk_file(
 
     Parameters:
         displacement (ngsolve.comp.GridFunction): The displacement to be exported.
-
         magnetisation (ngsolve.comp.GridFunction): The magnetisation to be exported.
-
         mesh (ngsolve.comp.Mesh): The mesh to be exported.
-
         export (bool): Truth value as to whether or not the export should actually happen.
-
         index (int): The index, used to denote which timestep the file should be labelled with, e.g. "the_result0.vtu, the_result1.vtu".
-
         save_step (int): The output will only be saved at multiples of this index. Use 1 for every step, 2 for every other step, etc.
     Returns:
         None
@@ -85,11 +81,8 @@ def calculate_KAPPA(
     Computes a parameter to describe the relative strength of the elastic and magnetic contributions to the fields and energy.
     Parameters:
         density (float): Density (kg/m^3).
-
         exchange_length (float): Exchange length (m).
-
         gyromagnetic_ratio (float): rad /(s T).
-
         mu_0 (float): Permeability of free space (N / A^2).
 
     Returns:
@@ -132,10 +125,16 @@ def lame_parameters(E, v, KAPPA, mu_0, M_s):
 
 
 def nondimensional_time(gyromagnetic, mu_0, M_s):
+    """
+    Returns the factor to be multiplied by time in SI units, yielding a non-dimensional time.
+    """
     return gyromagnetic * mu_0 * M_s
 
 
 def est_time_remaining(num_steps: int, index: int, time_dif: int):
+    """
+    Terrible estimate of time remaining. Multiplies last time taken by remaining steps.
+    """
     return timedelta(seconds=(num_steps - index) * time_dif)
 
 
@@ -145,4 +144,4 @@ def diagonal_sparse_inv(diagonal):
     Should be quicker than the standard inverse, but should not be used on anything that is not a diagonal matrix.
     We do not check if it is a diagonal matrix in the interest of speed.
     """
-    return scipy.sparse.diags(1/diagonal.diagonal())
+    return scipy.sparse.diags(1 / diagonal.diagonal())

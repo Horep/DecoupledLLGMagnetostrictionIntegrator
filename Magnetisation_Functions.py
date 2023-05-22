@@ -194,14 +194,21 @@ def build_fixed_mag(
     """
     Computes the fixed matrix sum of the mass and stiffness matrix for the magnetisation.
     """
-    massLumping = IntegrationRule(points = [(0,0,0), (1,0,0), (0,1,0), (0,0,1)], weights = [1/24, 1/24, 1/24, 1/24])  # use mass lumping approach for integration
+    massLumping = IntegrationRule(
+        points=[(0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1)],
+        weights=[1 / 24, 1 / 24, 1 / 24, 1 / 24],
+    )  # use mass lumping approach for integration
     with TaskManager():
         v = fes_mag.TrialFunction()
         phi = fes_mag.TestFunction()
         M_mag_fixed = BilinearForm(fes_mag)
         L_mag_fixed = BilinearForm(fes_mag)
-        M_mag_fixed += SymbolicBFI(ALPHA * InnerProduct(v, phi), intrule=massLumping)  # α<v,Φ>
-        L_mag_fixed += SymbolicBFI( THETA * K * InnerProduct(Grad(v), Grad(phi)), intrule=massLumping)  # θk<∇v,∇Φ>
+        M_mag_fixed += SymbolicBFI(
+            ALPHA * InnerProduct(v, phi), intrule=massLumping
+        )  # α<v,Φ>
+        L_mag_fixed += SymbolicBFI(
+            THETA * K * InnerProduct(Grad(v), Grad(phi)), intrule=massLumping
+        )  # θk<∇v,∇Φ>
         M_mag_fixed.Assemble()
         L_mag_fixed.Assemble()
     return M_mag_fixed, L_mag_fixed
@@ -264,14 +271,15 @@ def update_magnetisation(
     THETA: float,
     K: float,
     KAPPA: float,
-    disp_gfu,
-    mu,
-    lam,
-    lambda_m,
-    zeeman,
-    M_mag_fixed,
-    L_mag_fixed,
-) -> GridFunction:
+    disp_gfu: GridFunction,
+    mu: float,
+    lam: float,
+    lambda_m: float,
+    zeeman: GridFunction,
+    M_mag_fixed: BilinearForm,
+    L_mag_fixed: BilinearForm,
+    v0: np.ndarray,
+):
     """
     Updates a magnetisation vector with the new values.
 
@@ -283,23 +291,35 @@ def update_magnetisation(
         THETA (float): Implicitness parameter.
         K (float): Time step.
         KAPPA (float): Relative strength of magnetic vs. elastic contributions.
+        mu (float): The first lame constant.
+        lam (float): The second lame constant
+        lambda_m (float): The magnetostrain constant
+        zeeman (GridFunction): The external field gridfunction
+        M_mag_fixed (BilinearForm): The fixed mass matrix. Should use mass lumping, and be constant.
+        L_mag_fixed (BilinearForm): The fixed skew matrix. Should use mass lumping, and be constant.
+        v0 (np.ndarray): The starting point for the GMRES tangent plane update. Should either use previous step, or zeros.
 
     Returns:
         mag_grid_func (ngsolve.comp.GridFunction): The new updated magnetisation at the next time step.
+        v (np.ndarray): The tangent plane update. Should be used as v0 in the next iteration.
     """
     a_mag, f_mag = build_magnetic_lin_system(
         fes_mag, mag_gfu, ALPHA, THETA, K, KAPPA, disp_gfu, mu, lam, lambda_m, zeeman
     )
     B = build_tangent_plane_matrix(mag_gfu)
     Q = QMatrix.qmatrix(mag_gfu, fes_mag)
-    v = QMatrix.give_q_magnetisation_update(a_mag, B, f_mag, M_mag_fixed, L_mag_fixed, Q, K)
-    print(f"biggest update = {K*np.amax(v)}")
-    N = genfunc.get_num_nodes(mag_gfu)
+    v = QMatrix.give_q_magnetisation_update(
+        a_mag, B, f_mag, M_mag_fixed, L_mag_fixed, Q, v0
+    )
+    print(
+        f"biggest update = {K*np.amax(v)}"
+    )  # gives an idea of how large the updates are. Big is bad.
+    N = fes_mag.ndof
     mag_gfux, mag_gfuy, mag_gfuz = mag_gfu.components
     mag_gfux.vec.FV().NumPy()[:] += K * v[0:N]
     mag_gfuy.vec.FV().NumPy()[:] += K * v[N : 2 * N]
     mag_gfuz.vec.FV().NumPy()[:] += K * v[2 * N : 3 * N]
-    return mag_gfu
+    return mag_gfu, v
 
 
 def magnetic_energy(mag_gfu: GridFunction, mesh: Mesh, f_zeeman) -> float:

@@ -1,6 +1,5 @@
 from ngsolve import *
 from random import random
-import math
 import numpy as np
 import itertools
 import General_Functions as genfunc
@@ -45,7 +44,7 @@ def give_random_displacement(
 
     Parameters:
         disp_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
-        magnitude (float): The largest allowed size for any individual component. Set to 0.01.
+        magnitude (float): The largest allowed size for any individual component. Set to 0.01 by default.
 
     Returns:
         disp_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function with randomised nodal values in [-magnitude, magnitude]^3.
@@ -62,11 +61,11 @@ def give_uniform_displacement(disp_grid_func: GridFunction, direction) -> GridFu
     Returns a random normalised magnetisation grid function.
 
     Parameters:
-        mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
-        direction (float,float,float): The vector (x,y,z) the displacement should have.
+        disp_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function corresponding to the displacement.
+        direction (float,float,float): The vector (x,y,z) the displacement should have initially.
 
     Returns:
-        mag_grid_func (ngsolve.comp.GridFunction): A uniform VectorH1 grid function with value in [-1,1]^3 and length 1 at each node.
+        disp_grid_func (ngsolve.comp.GridFunction): A uniform VectorH1 grid function with prescribed direction.
     """
     num_points = genfunc.get_num_nodes(disp_grid_func)
     disp_grid_funcx, disp_grid_funcy, disp_grid_funcz = disp_grid_func.components
@@ -157,8 +156,12 @@ def FIRST_RUN_update_displacement(
         fes_mag (ngsolve.comp.VectorH1): VectorH1 finite element space.
         disp_gfu (ngsolve.comp.GridFunction): A VectorH1 grid function at the i=0 time step.
         vel_gfu (ngsolve.comp.GridFunction): A VectorH1 grid function that models the initial velocity.
+        strain_m (ngsolve.fem.CoefficientFunction): The magnetostrain.
         f_body (ngsolve.fem.CoefficientFunction): The body force.
         g_surface (ngsolve.fem.CoefficientFunction): The traction.
+        K (float): The timestep.
+        mu (float): The first lame constant.
+        lam (float): The second lame constant.
 
     Returns:
         new_disp (ngsolve.comp.GridFunction): The new updated displacement at the i=1 time step.
@@ -197,12 +200,12 @@ def FIRST_RUN_update_displacement(
 def elastic_energy(
     mesh: Mesh,
     disp_gfu: GridFunction,
-    strain_m: GridFunction,
+    strain_m: CoefficientFunction,
     f_body: CoefficientFunction,
     g_surface: CoefficientFunction,
     KAPPA: float,
-    mu,
-    lam,
+    mu: float,
+    lam: float,
 ) -> float:
     """
     >Uses the initial velocity condition instead of a difference quotient.<
@@ -211,9 +214,12 @@ def elastic_energy(
     Parameters:
         mesh (ngsolve.comp.Mesh): Displacement FE mesh.
         disp_gfu (ngsolve.comp.GridFunction): Displacement VectorH1 grid function.
+        strain_m (ngsolve.fem.CoefficientFunction): The magnetostrain.
         f_body (ngsolve.fem.CoefficientFunction): The body force.
         g_surface (ngsolve.fem.CoefficientFunction): The traction.
         KAPPA (float): Relative strength of magnetic to elastic contributions.
+        mu (float): The first lame constant.
+        lam (float): The second lame constant.
 
     Returns:
         KAPPA*energy (float): Elastic energy.
@@ -258,7 +264,8 @@ def kinetic_energy(
 
     Parameters:
         mesh (ngsolve.comp.Mesh): Displacement FE mesh.
-        vel_gfu (ngsolve.comp.GridFunction): Initial velocity VectorH1 grid function.
+        disp_gfu (ngsolve.comp.GridFunction): The ith displacement.
+        disp_gfu_prev (ngsolve.comp.GridFunction): The (i-1)th displacement.
         KAPPA (float): Relative strength of magnetic to elastic contributions.
         K (float): Timestep.
 
@@ -331,7 +338,11 @@ def Z_tensor(lambda_m: float) -> np.ndarray:
 
 
 def magnetostriction_field(
-    strainu, proj_mag_gfu, mu, lam, lambda_m
+    strainu: CoefficientFunction,
+    proj_mag_gfu: GridFunction,
+    mu: float,
+    lam: float,
+    lambda_m: float,
 ) -> CoefficientFunction:
     """
     Takes in a displacement and magnetisation, and returns (assuming Z is symmetric, isotropic and isochoric)
