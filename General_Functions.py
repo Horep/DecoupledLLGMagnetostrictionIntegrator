@@ -140,8 +140,8 @@ def est_time_remaining(num_steps: int, index: int, time_dif: int):
 
 def diagonal_sparse_inv(diagonal):
     """
-    Computes the inverse of a diagonal matrix, and returns a sparse representation of the inverse.
-    Should be quicker than the standard inverse, but should not be used on anything that is not a diagonal matrix.
+    Computes the inverse of a diagonal matrix, and returns a sparse representation of the inverse.\n
+    Should be quicker than the standard inverse, but should not be used on anything that is not a diagonal matrix.\n
     We do not check if it is a diagonal matrix in the interest of speed.
     """
     return scipy.sparse.diags(1 / diagonal.diagonal())

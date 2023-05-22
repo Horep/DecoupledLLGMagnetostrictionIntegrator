@@ -174,10 +174,9 @@ def build_strain_m(mag_grid_func: GridFunction, lambda_m: float) -> CoefficientF
         m1*m1-1/3 m1*m2     m1*m3\n
         m2*m1     m2*m2-1/3 m2*m3\n
         m3*m1     m3*m2     m3*m3-1/3
-    from an input magnetisation of the form (m1,m2,m3) scaled by 3/2 lambda_m.
+    from an input magnetisation of the form (m1,m2,m3), scaled by 3/2 lambda_m.
 
     Parameters:
-        fes_eps_m (ngsolve.comp.MatrixValued): A matrix valued FE space for magnetisation.
         mag_grid_func (ngsolve.comp.GridFunction): Input magnetisation grid function.
         lambda100 (float): The saturation magnetostrictive strain.
     Returns:
@@ -192,7 +191,7 @@ def build_fixed_mag(
     fes_mag: VectorH1, ALPHA: float, THETA: float, K: float
 ) -> BilinearForm:
     """
-    Computes the fixed matrix sum of the mass and stiffness matrix for the magnetisation.
+    Computes the fixed matrix sum of the mass M and skew L matrix for the magnetisation.
     """
     massLumping = IntegrationRule(
         points=[(0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1)],

@@ -122,16 +122,16 @@ def give_q_magnetisation_update(
     Returns the tangent plane update v^(i) to the magnetisation such that m^(i+1) = m^(i) + v^(i).
 
     Parameters:
-        A (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix from the variational formulation.
-        B (ngsolve.bla.MatrixD): The Nx3N tangent plane matrix.
-        F (ngsolve.comp.LinearForm): The 3Nx1 assembled force vector from the variational formulation.
-        M_FIXED (ngsolve.comp.BilinearForm): Fixed mass matrix
-        L_FIXED (ngsolve.comp.BilinearForm): Fixed skew matrix
-        Q (np.ndarray): The null space matrix. Reduces problem from 3N*3N to 2N*2N
-        v0 (np.ndarray):
+        A (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix from the variational formulation.\n
+        B (ngsolve.bla.MatrixD): The Nx3N tangent plane matrix.\n
+        F (ngsolve.comp.LinearForm): The 3Nx1 assembled force vector from the variational formulation.\n
+        M_FIXED (ngsolve.comp.BilinearForm): Fixed mass matrix\n
+        L_FIXED (ngsolve.comp.BilinearForm): Fixed skew matrix\n
+        Q (np.ndarray): The null space matrix. Reduces problem from 3N*3N to 2N*2N\n
+        v0 (np.ndarray): Initial trial tangent vector. Used in GMRES.
 
     Returns:
-        vlam (numpy.ndarray): The set of components to use for the update.
+        v (numpy.ndarray): The set of components to use for the update.
     """
     #  Convert to dense numpy matrix for A, and convert F to a numpy array.
     #  Converting to dense is bad for performance.

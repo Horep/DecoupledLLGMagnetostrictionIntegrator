@@ -61,7 +61,7 @@ def give_uniform_displacement(disp_grid_func: GridFunction, direction) -> GridFu
     Returns a random normalised magnetisation grid function.
 
     Parameters:
-        disp_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function corresponding to the displacement.
+        disp_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function corresponding to the displacement.\n
         direction (float,float,float): The vector (x,y,z) the displacement should have initially.
 
     Returns:
@@ -94,10 +94,10 @@ def update_displacement(
     Updates a displacement vector with the new values.
 
     Parameters:
-        fes_mag (ngsolve.comp.VectorH1): VectorH1 finite element space.
-        disp_gfu (ngsolve.comp.GridFunction): The current displacement.
-        disp_gfu_prev (ngsolve.comp.GridFunction): The displacement from the previous iteration.
-        f_body (ngsolve.fem.CoefficientFunction): The body force.
+        fes_mag (ngsolve.comp.VectorH1): VectorH1 finite element space.\n
+        disp_gfu (ngsolve.comp.GridFunction): The current displacement.\n
+        disp_gfu_prev (ngsolve.comp.GridFunction): The displacement from the previous iteration.\n
+        f_body (ngsolve.fem.CoefficientFunction): The body force.\n
         g_surface (ngsolve.fem.CoefficientFunction): The traction.
 
     Returns:
@@ -153,14 +153,14 @@ def FIRST_RUN_update_displacement(
     Updates a displacement vector with the new values.
 
     Parameters:
-        fes_mag (ngsolve.comp.VectorH1): VectorH1 finite element space.
-        disp_gfu (ngsolve.comp.GridFunction): A VectorH1 grid function at the i=0 time step.
-        vel_gfu (ngsolve.comp.GridFunction): A VectorH1 grid function that models the initial velocity.
-        strain_m (ngsolve.fem.CoefficientFunction): The magnetostrain.
-        f_body (ngsolve.fem.CoefficientFunction): The body force.
-        g_surface (ngsolve.fem.CoefficientFunction): The traction.
-        K (float): The timestep.
-        mu (float): The first lame constant.
+        fes_mag (ngsolve.comp.VectorH1): VectorH1 finite element space.\n
+        disp_gfu (ngsolve.comp.GridFunction): A VectorH1 grid function at the i=0 time step.\n
+        vel_gfu (ngsolve.comp.GridFunction): A VectorH1 grid function that models the initial velocity.\n
+        strain_m (ngsolve.fem.CoefficientFunction): The magnetostrain.\n
+        f_body (ngsolve.fem.CoefficientFunction): The body force.\n
+        g_surface (ngsolve.fem.CoefficientFunction): The traction.\n
+        K (float): The timestep.\n
+        mu (float): The first lame constant.\n
         lam (float): The second lame constant.
 
     Returns:
@@ -212,13 +212,13 @@ def elastic_energy(
     Updates a displacement vector with the new values.
 
     Parameters:
-        mesh (ngsolve.comp.Mesh): Displacement FE mesh.
-        disp_gfu (ngsolve.comp.GridFunction): Displacement VectorH1 grid function.
-        strain_m (ngsolve.fem.CoefficientFunction): The magnetostrain.
-        f_body (ngsolve.fem.CoefficientFunction): The body force.
-        g_surface (ngsolve.fem.CoefficientFunction): The traction.
-        KAPPA (float): Relative strength of magnetic to elastic contributions.
-        mu (float): The first lame constant.
+        mesh (ngsolve.comp.Mesh): Displacement FE mesh.\n
+        disp_gfu (ngsolve.comp.GridFunction): Displacement VectorH1 grid function.\n
+        strain_m (ngsolve.fem.CoefficientFunction): The magnetostrain.\n
+        f_body (ngsolve.fem.CoefficientFunction): The body force.\n
+        g_surface (ngsolve.fem.CoefficientFunction): The traction.\n
+        KAPPA (float): Relative strength of magnetic to elastic contributions.\n
+        mu (float): The first lame constant.\n
         lam (float): The second lame constant.
 
     Returns:
@@ -241,9 +241,9 @@ def initial_kinetic_energy(mesh: Mesh, vel_gfu: GridFunction, KAPPA: float) -> f
     Returns the kinetic energy KAPPA/2 _/‾ ||u_t||^2 dx.
 
     Parameters:
-        mesh (ngsolve.comp.Mesh): Displacement FE mesh.
-        vel_gfu (ngsolve.comp.GridFunction): Initial velocity VectorH1 grid function.
-        KAPPA (float): Relative strength of magnetic to elastic contributions.
+        mesh (ngsolve.comp.Mesh): Displacement FE mesh.\n
+        vel_gfu (ngsolve.comp.GridFunction): Initial velocity VectorH1 grid function.\n
+        KAPPA (float): Relative strength of magnetic to elastic contributions.\n
 
     Returns:
         Kinetic energy (float): The initial kinetic energy.
@@ -263,10 +263,10 @@ def kinetic_energy(
     Returns the kinetic energy KAPPA/(2*K*K) _/‾ ||u^i - u^(i-1)||^2 dx.
 
     Parameters:
-        mesh (ngsolve.comp.Mesh): Displacement FE mesh.
-        disp_gfu (ngsolve.comp.GridFunction): The ith displacement.
-        disp_gfu_prev (ngsolve.comp.GridFunction): The (i-1)th displacement.
-        KAPPA (float): Relative strength of magnetic to elastic contributions.
+        mesh (ngsolve.comp.Mesh): Displacement FE mesh.\n
+        disp_gfu (ngsolve.comp.GridFunction): The ith displacement.\n
+        disp_gfu_prev (ngsolve.comp.GridFunction): The (i-1)th displacement.\n
+        KAPPA (float): Relative strength of magnetic to elastic contributions.\n
         K (float): Timestep.
 
     Returns:
