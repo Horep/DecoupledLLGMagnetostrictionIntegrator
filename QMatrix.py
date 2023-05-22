@@ -10,11 +10,13 @@ import General_Functions as genfunc
 def qmatrix(mag_gfu: GridFunction, fes_mag) -> scipy.sparse.csr.csr_matrix:
     """
     Parameters:
-        mag_grid_func (GridFunction): The magnetisation degrees of freedom.
+        mag_grid_func (ngsolve.comp.GridFunction): The magnetisation degrees of freedom.
+        fes_mag (ngsolve.comp.VectorH1): VectorH1 finite element space.
 
     Returns:
         Q (scipy.sparse.csr.csr_matrix): A 2*N by 3*N matrix for use in the null space method solver.
-        Even rows should contain up to two non-zero elements, and odd rows should contain up to three non-zero elements
+
+    Even rows should contain up to two non-zero elements, and odd rows should contain up to three non-zero elements
     """
     mag_grid_func = magfunc.nodal_projection(mag_gfu, fes_mag)
     m1, m2, m3 = mag_grid_func.components
@@ -39,7 +41,9 @@ def q_basis(m: np.ndarray) -> np.ndarray:
                                      [m1(z_N), m2(z_N), m3(z_N)]],
     returns a suitable basis based upon the smallest in magnitude of m1, m2, m3 in the form
     [[L1(z1),L2(z1),L3(z1)],
-     [M1(z1),M2(z1),M3(z1)],,
+     [M1(z1),M2(z1),M3(z1)],
+     [L1(z2),L2(z2),L3(z2)],
+     [M1(z2),M2(z2),M3(z2)],
      ...]
     """
     N = len(m)
@@ -82,13 +86,20 @@ def basis_choice(u: float, v: float, w: float, index: int):
 
 def q_block(my_vec):
     """
-    Given a column of the form   = [[L1],
-                                    [M1],
-                                    ...,
-                                    [LN]
-                                    [MN]],
+    Given a 2N*1 column of the form   = [[L1],
+                                        [M1],
+                                        ...,
+                                        [LN],
+                                        [MN]],
     returns a sparse block of size 2N*N with the ith column having the 2i-1 and 2i positions
-    filled with the i and i+1 elements of the vector
+    filled with the i and i+1 elements of the vector. That is,
+    [[L1,0,0,0,...]
+     [M1,0,0,0,...]
+     [0,L2,0,0,...]
+     [0,M2,0,0,...]
+     ...
+     ...0,0,0,0,LN],
+     ...0,0,0,0,MN]],
     """
     assert len(my_vec) % 2 == 0
     N = len(my_vec) // 2
@@ -105,6 +116,7 @@ def give_q_magnetisation_update(
     M_FIXED: BilinearForm,
     L_FIXED: BilinearForm,
     Q: scipy.sparse.csr.csr_matrix,
+    v0: np.ndarray,
 ) -> np.ndarray:
     """
     Returns the tangent plane update v^(i) to the magnetisation such that m^(i+1) = m^(i) + v^(i).
@@ -113,6 +125,10 @@ def give_q_magnetisation_update(
         A (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix from the variational formulation.
         B (ngsolve.bla.MatrixD): The Nx3N tangent plane matrix.
         F (ngsolve.comp.LinearForm): The 3Nx1 assembled force vector from the variational formulation.
+        M_FIXED (ngsolve.comp.BilinearForm): Fixed mass matrix
+        L_FIXED (ngsolve.comp.BilinearForm): Fixed skew matrix
+        Q (np.ndarray): The null space matrix. Reduces problem from 3N*3N to 2N*2N
+        v0 (np.ndarray):
 
     Returns:
         vlam (numpy.ndarray): The set of components to use for the update.
@@ -133,13 +149,12 @@ def give_q_magnetisation_update(
     #  Throw away last N terms as these are the lagrange multipliers enforcing the tangent plane.
     stiffness_block = Q * A * Q.T
     force_block = Q * F
-    my_precon = Q*genfunc.diagonal_sparse_inv(M_FIXED+L_FIXED) * Q.T
+    my_precon = Q * genfunc.diagonal_sparse_inv(M_FIXED + L_FIXED) * Q.T
     time2 = time.time()
-    M2 = scipy.sparse.linalg.spilu(
-        stiffness_block
-    )  # spilu preconditioner used in GMRES algorithm below.
-    M = scipy.sparse.linalg.LinearOperator((2 * N, 2 * N), my_precon.solve)
-    z, myinfo = scipy.sparse.linalg.gmres(stiffness_block, force_block, tol=1e-8, M=M)
+    # M = scipy.sparse.linalg.LinearOperator((2 * N, 2 * N), my_precon.solve)
+    z, myinfo = scipy.sparse.linalg.gmres(
+        stiffness_block, force_block, tol=1e-8, M=my_precon, x0=Q * v0
+    )
     time3 = time.time()
     v = Q.T * z
     residual = np.linalg.norm(
