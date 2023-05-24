@@ -129,7 +129,7 @@ def update_displacement(
         f_disp.Assemble()
         time1 = time.time()
         inv = CGSolver(a_disp.mat, c, maxsteps=1000, precision=1e-8)
-        #new_disp.vec.data = (a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky")*f_disp.vec)
+        #new_disp.vec.data = (a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky")* f_disp.vec)
         new_disp.vec.data = (inv*f_disp.vec)
         time2 = time.time()
         print(f"Disp solved in {time2-time1}")

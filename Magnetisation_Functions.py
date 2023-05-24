@@ -313,7 +313,7 @@ def update_magnetisation(
     print(
         f"biggest update = {K*np.amax(v)}"
     )  # gives an idea of how large the updates are. Big is bad.
-    N = fes_mag.ndof
+    N = fes_mag.ndof//3
     mag_gfux, mag_gfuy, mag_gfuz = mag_gfu.components
     mag_gfux.vec.FV().NumPy()[:] += K * v[0:N]
     mag_gfuy.vec.FV().NumPy()[:] += K * v[N : 2 * N]

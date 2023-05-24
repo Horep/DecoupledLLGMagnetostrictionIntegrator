@@ -133,8 +133,7 @@ def give_q_magnetisation_update(
     Returns:
         v (numpy.ndarray): The set of components to use for the update.
     """
-    #  Convert to dense numpy matrix for A, and convert F to a numpy array.
-    #  Converting to dense is bad for performance.
+    # convert to sparse matrices and add together
     rows, cols, vals = A.mat.COO()
     A = scipy.sparse.csr_matrix((vals, (rows, cols)))
     rows, cols, vals = M_FIXED.mat.COO()
@@ -145,8 +144,7 @@ def give_q_magnetisation_update(
     F = F.vec.FV().NumPy()[:]
     assert len(F) % 3 == 0, "The force vector is not a multiple of three, very bad."
     N = len(F) // 3
-    #  Make block stiffness matrix and block force vector and then solve.
-    #  Throw away last N terms as these are the lagrange multipliers enforcing the tangent plane.
+    # rotate to Q basis
     stiffness_block = Q * A * Q.T
     force_block = Q * F
     my_precon = Q * genfunc.diagonal_sparse_inv(M_FIXED + L_FIXED) * Q.T
@@ -156,6 +154,7 @@ def give_q_magnetisation_update(
         stiffness_block, force_block, tol=1e-8, M=my_precon, x0=Q * v0
     )
     time3 = time.time()
+    # rotate out of Q basis
     v = Q.T * z
     residual = np.linalg.norm(
         B.dot(v), np.inf
