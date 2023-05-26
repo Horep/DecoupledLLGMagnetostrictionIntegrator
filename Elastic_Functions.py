@@ -122,8 +122,8 @@ def update_displacement(
             InnerProduct(disp_gfu - disp_gfu_prev, psi) * dx
         )  # k<d_t u^i, ψ> = <u^i - u^(i-1), ψ>
         f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
-        f_disp += InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
-        f_disp += InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
+        f_disp += K*K*InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
+        f_disp += K*K*InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
         c = Preconditioner(a_disp, "local")
         a_disp.Assemble()
         f_disp.Assemble()
@@ -185,13 +185,13 @@ def FIRST_RUN_update_displacement(
         f_disp += InnerProduct(disp_gfu, psi) * dx  # <u^i, ψ>
         f_disp += K * K * InnerProduct(f_body, psi) * dx  # k^2 <f, ψ>
         f_disp += K * K * InnerProduct(g_surface, psi) * ds  # k^2 _/‾ g·ψ ds
-        time1 = time.time()
-        print("Assembling a_disp")
+        c = Preconditioner(a_disp, "local")
         a_disp.Assemble()
-        print("Assembling f_disp")
         f_disp.Assemble()
         time1 = time.time()
-        new_disp.vec.data = a_disp.mat.Inverse(fes_disp.FreeDofs()) * f_disp.vec
+        inv = CGSolver(a_disp.mat, c, maxsteps=1000, precision=1e-8)
+        #new_disp.vec.data = (a_disp.mat.Inverse(fes_disp.FreeDofs(), inverse="sparsecholesky")* f_disp.vec)
+        new_disp.vec.data = (inv*f_disp.vec)
         time2 = time.time()
         print(f"Disp solved in {time2-time1}")
     return new_disp
