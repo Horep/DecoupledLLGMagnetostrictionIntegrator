@@ -1,5 +1,5 @@
 from ngsolve import *
-from random import random
+from random import random, seed
 import math
 import numpy as np
 import scipy.sparse
@@ -11,7 +11,7 @@ import QMatrix
 import time
 
 
-def give_random_magnetisation(mag_grid_func: GridFunction) -> GridFunction:
+def give_random_magnetisation(mag_grid_func: GridFunction, seednum=None) -> GridFunction:
     """
     Returns a random normalised magnetisation grid function.
 
@@ -23,7 +23,10 @@ def give_random_magnetisation(mag_grid_func: GridFunction) -> GridFunction:
     """
     num_points = genfunc.get_num_nodes(mag_grid_func)
     mag_gfux, mag_gfuy, mag_gfuz = mag_grid_func.components
+
     for i in range(num_points):
+        if not (seednum == None):
+            seed(seednum + i)
         a, b, c = 2 * random() - 1, 2 * random() - 1, 2 * random() - 1
         size = math.sqrt(a * a + b * b + c * c)
         try:
@@ -360,3 +363,21 @@ def nodal_norm(mag_grid_func: GridFunction) -> float:
     )
     magnitudes = np.sqrt(node_x**2 + node_y**2 + node_z**2)
     return np.amax(magnitudes)
+
+
+def interpolant_h_mag(fes_scalar, mag_gfu):
+    mag_x, mag_y, mag_z = mag_gfu.components
+    node_x, node_y, node_z = (
+        mag_x.vec.FV().NumPy()[:],
+        mag_y.vec.FV().NumPy()[:],
+        mag_z.vec.FV().NumPy()[:],
+    )
+    my_interpolant = GridFunction(fes_scalar)
+    my_interpolant.vec.FV().NumPy()[:] = node_x*node_x + node_y*node_y + node_z*node_z
+    return my_interpolant
+
+
+def constraint_error(fes_scalar, mag_gfu, mesh):
+    interp = interpolant_h_mag(fes_scalar, mag_gfu)
+    integrand = sqrt((interp - 1)*(interp - 1))  # define |I_h(|u|^2) - 1|
+    return Integrate(integrand, mesh, VOL)
