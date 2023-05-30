@@ -10,6 +10,11 @@ import Elastic_Functions as elfunc
 import QMatrix
 import time
 
+massLumping = IntegrationRule(
+    points=[(0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1)],
+    weights=[1 / 24, 1 / 24, 1 / 24, 1 / 24],
+    )  # use mass lumping approach for integration
+
 
 def give_random_magnetisation(mag_grid_func: GridFunction, seednum=None) -> GridFunction:
     """
@@ -196,10 +201,6 @@ def build_fixed_mag(
     """
     Computes the fixed matrix sum of the mass M and skew L matrix for the magnetisation.
     """
-    massLumping = IntegrationRule(
-        points=[(0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1)],
-        weights=[1 / 24, 1 / 24, 1 / 24, 1 / 24],
-    )  # use mass lumping approach for integration
     with TaskManager():
         v = fes_mag.TrialFunction()
         phi = fes_mag.TestFunction()
@@ -207,10 +208,8 @@ def build_fixed_mag(
         L_mag_fixed = BilinearForm(fes_mag)
         M_mag_fixed += SymbolicBFI(
             ALPHA * InnerProduct(v, phi), intrule=massLumping
-        )  # α<v,Φ>
-        L_mag_fixed += SymbolicBFI(
-            THETA * K * InnerProduct(Grad(v), Grad(phi)), intrule=massLumping
-        )  # θk<∇v,∇Φ>
+        )  # α<v,Φ> with mass lumping
+        L_mag_fixed += THETA * K * InnerProduct(Grad(v), Grad(phi)) * dx  # θk<∇v,∇Φ>
         M_mag_fixed.Assemble()
         L_mag_fixed.Assemble()
     return M_mag_fixed, L_mag_fixed
@@ -234,17 +233,17 @@ def build_magnetic_lin_system(
     Does not account for unit length constraint other than use of tangent plane scheme.
 
     Parameters:
-        fes_mag (ngsolve.comp.VectorH1): VectorH1 finite element space.
-        mag_gfu (ngsolve.comp.GridFunction): A VectorH1 grid function.
-        fes_eps_m (ngsolve.comp.MatrixValued): Matrix finite element space.
-        ALPHA (float): Dissipative constant in LLG equation.
-        THETA (float): Implicitness parameter.
-        K (float): Time step.
-        KAPPA (float): Relative strength of magnetic vs. elastic contributions.
+        fes_mag (ngsolve.comp.VectorH1): VectorH1 finite element space.\n
+        mag_gfu (ngsolve.comp.GridFunction): A VectorH1 grid function.\n
+        fes_eps_m (ngsolve.comp.MatrixValued): Matrix finite element space.\n
+        ALPHA (float): Dissipative constant in LLG equation.\n
+        THETA (float): Implicitness parameter.\n
+        K (float): Time step.\n
+        KAPPA (float): Relative strength of magnetic vs. elastic contributions.\n
 
     Returns:
-        a_mag (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix.
-        f_mag (ngsolve.comp.LinearForm): The 3Nx1 assembled force vector.
+        a_mag (ngsolve.comp.BilinearForm): The 3Nx3N assembled magnetisation "stiffness" matrix.\
+        f_mag (ngsolve.comp.LinearForm): The 3Nx1 assembled force vector.\n
     """
     # Test functions
     v = fes_mag.TrialFunction()
@@ -256,7 +255,7 @@ def build_magnetic_lin_system(
     # Building the linear system for the magnetisation
     with TaskManager():
         a_mag = BilinearForm(fes_mag)
-        a_mag += InnerProduct(Cross(mag_gfu, v), phi) * dx  # <m×v,Φ>
+        a_mag += SymbolicBFI(InnerProduct(Cross(mag_gfu, v), phi), intrule=massLumping)  # <m×v,Φ> with mass lumping
         a_mag.Assemble()
         f_mag = LinearForm(fes_mag)
         f_mag += -InnerProduct(Grad(mag_gfu), Grad(phi)) * dx  # -<∇m,∇Φ>

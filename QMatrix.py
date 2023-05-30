@@ -142,19 +142,16 @@ def give_q_magnetisation_update(
     L_FIXED = scipy.sparse.csr_matrix((vals, (rows, cols)))
     A += M_FIXED + L_FIXED
     F = F.vec.FV().NumPy()[:]
-    assert len(F) % 3 == 0, "The force vector is not a multiple of three, very bad."
-    N = len(F) // 3
     # rotate to Q basis
     stiffness_block = Q * A * Q.T
     force_block = Q * F
-    my_precon = Q * genfunc.diagonal_sparse_inv(M_FIXED + L_FIXED) * Q.T
     time2 = time.time()
     # M = scipy.sparse.linalg.LinearOperator((2 * N, 2 * N), my_precon.solve)
     z, myinfo = scipy.sparse.linalg.gmres(
-        stiffness_block, force_block, tol=1e-8, M=my_precon, x0=Q * v0
-    )
+        stiffness_block, force_block, tol=1e-8, x0=Q * v0
+    )  # solve (QAQ^T)z = QF using GMRES with initial condition from previous
     time3 = time.time()
-    # rotate out of Q basis
+    # rotate z out of Q basis
     v = Q.T * z
     residual = np.linalg.norm(
         B.dot(v), np.inf

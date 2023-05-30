@@ -116,7 +116,7 @@ def force_density_grav(grav_accel, density, exchange_length, KAPPA, mu_0, M_s):
 
 def lame_parameters(E, v, KAPPA, mu_0, M_s):
     """
-    Returns mu,lambda from the Young's modulus E and Poisson's ratio v
+    Returns nondimensional mu,lambda from the Young's modulus E and Poisson's ratio v
     """
     mu = E / (2 * (1 + v))
     lam = E * v / (1 + v)
