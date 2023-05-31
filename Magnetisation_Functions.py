@@ -380,3 +380,11 @@ def constraint_error(fes_scalar, mag_gfu, mesh):
     interp = interpolant_h_mag(fes_scalar, mag_gfu)
     integrand = sqrt((interp - 1)*(interp - 1))  # define |I_h(|u|^2) - 1|
     return Integrate(integrand, mesh, VOL)
+
+
+def component_integrator(mag_gfu, mesh, box_volume):
+    mag_x, mag_y, mag_z = mag_gfu.components
+    x_average = Integrate(mag_x, mesh)/box_volume
+    y_average = Integrate(mag_y, mesh)/box_volume
+    z_average = Integrate(mag_z, mesh)/box_volume
+    return x_average, y_average, z_average
