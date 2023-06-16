@@ -7,7 +7,7 @@ import Magnetisation_Functions as magfunc
 import General_Functions as genfunc
 
 
-def qmatrix(mag_gfu: GridFunction, fes_mag) -> scipy.sparse.csr.csr_matrix:
+def qmatrix(mag_gfu: GridFunction, fes_mag: VectorH1) -> scipy.sparse.csr.csr_matrix:
     """
     Parameters:
         mag_grid_func (ngsolve.comp.GridFunction): The magnetisation degrees of freedom.
@@ -84,7 +84,7 @@ def basis_choice(u: float, v: float, w: float, index: int):
         return L, M
 
 
-def q_block(my_vec):
+def q_block(my_vec: np.ndarray) -> np.ndarray:
     """
     Given a 2N*1 column of the form   = [[L1],
                                         [M1],
@@ -149,7 +149,7 @@ def give_q_magnetisation_update(
     time2 = time.time()
     # M = scipy.sparse.linalg.LinearOperator((2 * N, 2 * N), my_precon.solve)
     M2 = scipy.sparse.linalg.spilu(stiffness_block)
-    M = scipy.sparse.linalg.LinearOperator((2*N,2*N), M2.solve)
+    M = scipy.sparse.linalg.LinearOperator((2 * N, 2 * N), M2.solve)
     z, myinfo = scipy.sparse.linalg.gmres(
         stiffness_block, force_block, tol=1e-8, x0=Q * v0, M=M
     )  # solve (QAQ^T)z = QF using GMRES with initial condition from previous

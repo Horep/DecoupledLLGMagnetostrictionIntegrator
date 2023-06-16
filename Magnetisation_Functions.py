@@ -13,10 +13,12 @@ import time
 massLumping = IntegrationRule(
     points=[(0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1)],
     weights=[1 / 24, 1 / 24, 1 / 24, 1 / 24],
-    )  # use mass lumping approach for integration
+)  # use mass lumping approach for integration
 
 
-def give_random_magnetisation(mag_grid_func: GridFunction, seednum=None) -> GridFunction:
+def give_random_magnetisation(
+    mag_grid_func: GridFunction, seednum: int=None
+) -> GridFunction:
     """
     Returns a random normalised magnetisation grid function.
 
@@ -255,7 +257,9 @@ def build_magnetic_lin_system(
     # Building the linear system for the magnetisation
     with TaskManager():
         a_mag = BilinearForm(fes_mag)
-        a_mag += SymbolicBFI(InnerProduct(Cross(mag_gfu, v), phi), intrule=massLumping)  # <m×v,Φ> with mass lumping
+        a_mag += SymbolicBFI(
+            InnerProduct(Cross(mag_gfu, v), phi), intrule=massLumping
+        )  # <m×v,Φ> with mass lumping
         a_mag.Assemble()
         f_mag = LinearForm(fes_mag)
         f_mag += -InnerProduct(Grad(mag_gfu), Grad(phi)) * dx  # -<∇m,∇Φ>
@@ -315,7 +319,7 @@ def update_magnetisation(
     print(
         f"biggest update = {K*np.amax(v)}"
     )  # gives an idea of how large the updates are. Big is bad.
-    N = fes_mag.ndof//3
+    N = fes_mag.ndof // 3
     mag_gfux, mag_gfuy, mag_gfuz = mag_gfu.components
     mag_gfux.vec.FV().NumPy()[:] += K * v[0:N]
     mag_gfuy.vec.FV().NumPy()[:] += K * v[N : 2 * N]
@@ -375,7 +379,9 @@ def interpolant_h_mag(fes_scalar: VectorH1, mag_gfu: GridFunction) -> GridFuncti
         mag_z.vec.FV().NumPy()[:],
     )
     my_interpolant = GridFunction(fes_scalar)
-    my_interpolant.vec.FV().NumPy()[:] = node_x*node_x + node_y*node_y + node_z*node_z
+    my_interpolant.vec.FV().NumPy()[:] = (
+        node_x * node_x + node_y * node_y + node_z * node_z
+    )
     return my_interpolant
 
 
@@ -387,7 +393,7 @@ def constraint_error(fes_scalar: VectorH1, mag_gfu: GridFunction, mesh: Mesh) ->
     Halving the timestep should halve the constraint error.
     """
     interp = interpolant_h_mag(fes_scalar, mag_gfu)
-    integrand = sqrt((interp - 1)*(interp - 1))  # define |I_h(|u|^2) - 1|
+    integrand = sqrt((interp - 1) * (interp - 1))  # define |I_h(|u|^2) - 1|
     return Integrate(integrand, mesh, VOL)
 
 
@@ -397,7 +403,7 @@ def component_integrator(mag_gfu: GridFunction, mesh: Mesh, box_volume: float):
     Needs the volume of the mesh to perform the averaging.
     """
     mag_x, mag_y, mag_z = mag_gfu.components
-    x_average = Integrate(mag_x, mesh)/box_volume
-    y_average = Integrate(mag_y, mesh)/box_volume
-    z_average = Integrate(mag_z, mesh)/box_volume
+    x_average = Integrate(mag_x, mesh) / box_volume
+    y_average = Integrate(mag_y, mesh) / box_volume
+    z_average = Integrate(mag_z, mesh) / box_volume
     return x_average, y_average, z_average
