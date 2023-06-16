@@ -394,19 +394,20 @@ def interpolant_h_mag(fes_scalar: VectorH1, mag_gfu: GridFunction) -> GridFuncti
 
 def constraint_error(fes_scalar: VectorH1, mag_gfu: GridFunction, mesh: Mesh) -> float:
     """
-    Returns the integral of |I_h(|u|^2) - 1| over the entire mesh.\n
+    Returns the integral of I_h(|u|^2) - 1 over the entire mesh.\n
     Should be close to zero if the time scale is appropriate.\n
-    Satisfies _/‾|I_h(|u|^2) - 1| dx <= ck Σ ||∇m_{h}^{0}||^2 for some constant c.\n
+    Satisfies _/‾|I_h(|u|^2) - 1| dx <= ck for some constant c.\n
     Halving the timestep should halve the constraint error.
     """
-    interp = interpolant_h_mag(fes_scalar, mag_gfu)
-    integrand = sqrt((interp - 1) * (interp - 1))  # define |I_h(|u|^2) - 1|
+    interp = interpolant_h_mag(fes_scalar, mag_gfu)  # gets I_h(|u_h|^2)
+    integrand = sqrt((interp - 1) * (interp - 1))  # define |I_h(|u_h|^2) - 1|.
+    #  There doesn't seem to be a good absolute value function so you get this shit instead.
     return Integrate(integrand, mesh, VOL)
 
 
 def component_integrator(mag_gfu: GridFunction, mesh: Mesh, box_volume: float):
     """
-    Returns the average x,y, and z components of the input magnetisation over the mesh.\n
+    Returns the average x, y, and z components of the input magnetisation over the mesh.\n
     Needs the volume of the mesh to perform the averaging.
     """
     mag_x, mag_y, mag_z = mag_gfu.components
