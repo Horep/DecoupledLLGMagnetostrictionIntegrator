@@ -392,10 +392,6 @@ def constraint_error(fes_scalar: VectorH1, mag_gfu: GridFunction, mesh: Mesh) ->
 
 
 def component_integrator(mag_gfu: GridFunction, mesh: Mesh, box_volume: float):
-    """
-    Returns the average x,y, and z components of the input magnetisation over the mesh.\n
-    Needs the volume of the mesh to perform the averaging.
-    """
     mag_x, mag_y, mag_z = mag_gfu.components
     x_average = Integrate(mag_x, mesh)/box_volume
     y_average = Integrate(mag_y, mesh)/box_volume
