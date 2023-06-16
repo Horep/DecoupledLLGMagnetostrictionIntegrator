@@ -7,7 +7,7 @@ import Magnetisation_Functions as magfunc
 import time
 
 
-def strain(u):
+def strain(u: GridFunction) -> CoefficientFunction:
     """
     Returns the total strain from (Grad(u) + Grad(u)^T) / 2.
 
@@ -17,7 +17,7 @@ def strain(u):
     return Sym(Grad(u))
 
 
-def strain_el(strain_m, u):
+def strain_el(strain_m: CoefficientFunction, u: GridFunction) -> CoefficientFunction:
     """
     Returns the elastic strain, the difference of the total strain and magnetostrain.
     """

@@ -20,10 +20,14 @@ def give_random_magnetisation(
     mag_grid_func: GridFunction, seednum: int=None
 ) -> GridFunction:
     """
-    Returns a random normalised magnetisation grid function.
+    Returns a random normalised magnetisation grid function. Use the "seednum" variable if you want the randomisation to stay consistent.\n
+    We use the mesh to define the random nodal values.\n
+    If you increase the mesh quality or change the mesh, the resulting randomisation will be different.\n
+    It is always the same unless the nodes change (so changing the timestep is safe).
 
     Parameters:
         mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
+        seednum (int): Seed value to use for the randomisation.
 
     Returns:
         mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function with randomised nodal values in [-1,1]^3 and length 1 at each node.
@@ -50,10 +54,12 @@ def give_random_magnetisation(
 
 def give_uniform_magnetisation(mag_grid_func: GridFunction, direction) -> GridFunction:
     """
-    Returns a random normalised magnetisation grid function.
+    Returns a uniform normalised magnetisation grid function. Use `direction` to pick the direction.\n
+    If (0,0,0) entered, will return (1,0,0) instead.
 
     Parameters:
-        mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
+        mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.\n
+        direction (float, float, float): A direction (x, y, z). Will be normalised.
 
     Returns:
         mag_grid_func (ngsolve.comp.GridFunction): A uniform VectorH1 grid function with value in [-1,1]^3 and length 1 at each node.
@@ -77,12 +83,13 @@ def give_uniform_magnetisation(mag_grid_func: GridFunction, direction) -> GridFu
     return mag_grid_func
 
 
-def nodal_projection(mag_gfu: GridFunction, fes_mag) -> GridFunction:
+def nodal_projection(mag_gfu: GridFunction, fes_mag: VectorH1) -> GridFunction:
     """
     Returns a grid function with all nodal values projected onto the unit sphere. Every node z will satisfy |m(z)|=1.
 
     Parameters:
-        mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.
+        mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function.\n
+        fes_mag (VectorH1): The finite element space of the magnetisation.
 
     Returns:
         mag_grid_func (ngsolve.comp.GridFunction): A VectorH1 grid function with length 1 at each node.
@@ -188,7 +195,7 @@ def build_strain_m(mag_grid_func: GridFunction, lambda_m: float) -> CoefficientF
 
     Parameters:
         mag_grid_func (ngsolve.comp.GridFunction): Input magnetisation grid function.
-        lambda100 (float): The saturation magnetostrictive strain.
+        lambda_m (float): The saturation magnetostrictive strain.
     Returns:
         mymatrix (ngsolve.fem.CoefficientFunction): The magnetostrain matrix.
     """
@@ -327,7 +334,7 @@ def update_magnetisation(
     return mag_gfu, v
 
 
-def magnetic_energy(mag_gfu: GridFunction, mesh: Mesh, f_zeeman) -> float:
+def magnetic_energy(mag_gfu: GridFunction, mesh: Mesh, f_zeeman: CoefficientFunction) -> float:
     """
     Returns 1/2 _/‾||∇m||^2 dx, integrated over the mesh.
     Parameters:
@@ -343,7 +350,7 @@ def magnetic_energy(mag_gfu: GridFunction, mesh: Mesh, f_zeeman) -> float:
     return Integrate(integrand, mesh, VOL)
 
 
-def projected_magnetic_energy(mag_gfu: GridFunction, mesh: Mesh, fes_mag) -> float:
+def projected_magnetic_energy(mag_gfu: GridFunction, mesh: Mesh, fes_mag: VectorH1) -> float:
     """
     Returns 1/2 _/‾||∇proj(m)||^2 dx, integrated over the mesh.
     Useful for checking how much energy is contributed from the direction vs. magnitude.
