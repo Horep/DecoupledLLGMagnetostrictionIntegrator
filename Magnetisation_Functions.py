@@ -364,7 +364,10 @@ def nodal_norm(mag_grid_func: GridFunction) -> float:
     return np.amax(magnitudes)
 
 
-def interpolant_h_mag(fes_scalar, mag_gfu):
+def interpolant_h_mag(fes_scalar: VectorH1, mag_gfu: GridFunction) -> GridFunction:
+    """
+    Returns a 1D function with |m_h(z)|^2 at each node. Used in the constraint error integral.
+    """
     mag_x, mag_y, mag_z = mag_gfu.components
     node_x, node_y, node_z = (
         mag_x.vec.FV().NumPy()[:],
@@ -376,13 +379,19 @@ def interpolant_h_mag(fes_scalar, mag_gfu):
     return my_interpolant
 
 
-def constraint_error(fes_scalar, mag_gfu, mesh):
+def constraint_error(fes_scalar: VectorH1, mag_gfu: GridFunction, mesh: Mesh) -> float:
+    """
+    Returns the integral of |I_h(|u|^2) - 1| over the entire mesh.\n
+    Should be close to zero if the time scale is appropriate.\n
+    Satisfies _/‾|I_h(|u|^2) - 1| dx <= ck Σ ||∇m_{h}^{0}||^2 for some constant c.\n
+    Halving the timestep should halve the constraint error.
+    """
     interp = interpolant_h_mag(fes_scalar, mag_gfu)
     integrand = sqrt((interp - 1)*(interp - 1))  # define |I_h(|u|^2) - 1|
     return Integrate(integrand, mesh, VOL)
 
 
-def component_integrator(mag_gfu, mesh, box_volume):
+def component_integrator(mag_gfu: GridFunction, mesh: Mesh, box_volume: float):
     mag_x, mag_y, mag_z = mag_gfu.components
     x_average = Integrate(mag_x, mesh)/box_volume
     y_average = Integrate(mag_y, mesh)/box_volume
