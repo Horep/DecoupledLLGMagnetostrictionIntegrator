@@ -167,4 +167,6 @@ def MaximumMeshSize(mesh: Mesh) -> float:
 
                 if h > hmax:
                     hmax = h
+    if hmax>1:
+        print("WARNING: maxh is larger than exchange length, simulation may not be accurate")
     return hmax
