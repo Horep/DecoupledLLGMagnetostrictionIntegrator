@@ -145,3 +145,26 @@ def diagonal_sparse_inv(diagonal):
     We do not check if it is a diagonal matrix in the interest of speed.
     """
     return scipy.sparse.diags(1 / diagonal.diagonal())
+
+
+def MaximumMeshSize(mesh: Mesh) -> float:
+    """
+    Ripped from https://gitlab.tuwien.ac.at/asc/praetorius/commics/-/blob/master/_tools/misc/maximumMeshSize.py
+    CHANGED: some things related to 
+    Given a mesh, yields the actual mesh h_max given by the largest tetrahedral diameter.
+    Useful for iterating the mesh size down until the diameter is suitably small.
+    """
+    myelements = list(mesh.Elements(VOL))  # list all volume elements
+    hmax = 0.0
+    for e in range(len(myelements)):
+        el = myelements[e]  # for each element iterate over each vertex
+        for i in range(4):
+            for j in range(i+1,4):
+                p1 = mesh[el.vertices[i]].point  # using the name of the vertex v in the element, get the coords from the mesh[v].point
+                p2 = mesh[el.vertices[j]].point
+  
+                h = sqrt(sum((p1[k]-p2[k])**2 for k in range(3)))  # calculate the distance between the two points
+
+                if h > hmax:
+                    hmax = h
+    return hmax
