@@ -149,10 +149,10 @@ def diagonal_sparse_inv(diagonal):
 
 def MaximumMeshSize(mesh: Mesh) -> float:
     """
-    Ripped from https://gitlab.tuwien.ac.at/asc/praetorius/commics/-/blob/master/_tools/misc/maximumMeshSize.py
-    CHANGED: some things related to 
-    Given a mesh, yields the actual mesh h_max given by the largest tetrahedral diameter.
-    Useful for iterating the mesh size down until the diameter is suitably small.
+    Ripped from https://gitlab.tuwien.ac.at/asc/praetorius/commics/-/blob/master/_tools/misc/maximumMeshSize.py\n
+    CHANGED: some things to actually make it work on my version\n
+    Given a mesh, yields the actual mesh h_max given by the largest tetrahedral diameter.\n
+    Useful for iterating the mesh size down until the diameter is suitably small.\n
     """
     myelements = list(mesh.Elements(VOL))  # list all volume elements
     hmax = 0.0
