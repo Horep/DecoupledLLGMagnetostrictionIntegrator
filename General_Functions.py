@@ -138,6 +138,10 @@ def est_time_remaining(num_steps: int, index: int, time_dif: int):
     return timedelta(seconds=(num_steps - index) * time_dif)
 
 
+def calculate_exchange_length(A, mu_0, M_s):
+    return sqrt(2*A / (mu_0 * M_s**2))
+
+
 def diagonal_sparse_inv(diagonal):
     """
     Computes the inverse of a diagonal matrix, and returns a sparse representation of the inverse.\n
