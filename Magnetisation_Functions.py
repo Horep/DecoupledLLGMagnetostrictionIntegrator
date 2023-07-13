@@ -266,7 +266,7 @@ def build_magnetic_lin_system(
         a_mag = BilinearForm(fes_mag)
         a_mag += SymbolicBFI(
             InnerProduct(Cross(mag_gfu, v), phi), intrule=massLumping
-        )  # <m×v,Φ> with mass lumping
+        )  # <m×v,Φ> with mass lumping (MAY NEED TO REMOVE INNERPRODUCT FUNCTION AND SIMPLY MULTIPLY?)
         a_mag.Assemble()
         f_mag = LinearForm(fes_mag)
         f_mag += -InnerProduct(Grad(mag_gfu), Grad(phi)) * dx  # -<∇m,∇Φ>
