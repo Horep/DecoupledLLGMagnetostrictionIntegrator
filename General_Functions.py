@@ -131,7 +131,7 @@ def nondimensional_time(gyromagnetic: float, mu_0: float, M_s: float) -> float:
     return gyromagnetic * mu_0 * M_s
 
 
-def est_time_remaining(num_steps: int, index: int, time_dif: int) -> float:
+def est_time_remaining(num_steps: int, index: int, time_dif: float) -> float:
     """
     Terrible estimate of time remaining. Multiplies last time taken by remaining steps.
     """
