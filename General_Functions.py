@@ -91,21 +91,21 @@ def calculate_KAPPA(
     return density * exchange_length**2 * gyromagnetic_ratio**2 * mu_0
 
 
-def stress_density_factor(KAPPA, mu_0, M_s):
+def stress_density_factor(KAPPA: float, mu_0: float, M_s: float) -> float:
     """
     Given a traction G in SI units (kg/s^2 m), divide G by the output of this function to get nondimensional g = G/output
     """
     return KAPPA * mu_0 * M_s**2
 
 
-def force_density_factor(exchange_length, KAPPA, mu_0, M_s):
+def force_density_factor(exchange_length: float, KAPPA: float, mu_0: float, M_s: float) -> float:
     """
     Given a force density F in SI units (kg/s^2 m^2), divide F by the output of this function to get nondimensional f = F/output
     """
     return stress_density_factor(KAPPA, mu_0, M_s) / exchange_length
 
 
-def force_density_grav(grav_accel, density, exchange_length, KAPPA, mu_0, M_s):
+def force_density_grav(grav_accel: float, density: float, exchange_length: float, KAPPA: float, mu_0: float, M_s: float) -> float:
     """
     Returns the gravitational force density from rho*g/(force_density_factor). For downward force, input grav_accel as negative.
     """
@@ -114,7 +114,7 @@ def force_density_grav(grav_accel, density, exchange_length, KAPPA, mu_0, M_s):
     )
 
 
-def lame_parameters(E, v, KAPPA, mu_0, M_s):
+def lame_parameters(E: float, v: float, KAPPA: float, mu_0: float, M_s: float) -> float:
     """
     Returns nondimensional mu,lambda from the Young's modulus E and Poisson's ratio v
     """
@@ -124,21 +124,24 @@ def lame_parameters(E, v, KAPPA, mu_0, M_s):
     return mu / my_fac, lam / my_fac
 
 
-def nondimensional_time(gyromagnetic, mu_0, M_s):
+def nondimensional_time(gyromagnetic: float, mu_0: float, M_s: float) -> float:
     """
     Returns the factor to be multiplied by time in SI units, yielding a non-dimensional time.
     """
     return gyromagnetic * mu_0 * M_s
 
 
-def est_time_remaining(num_steps: int, index: int, time_dif: int):
+def est_time_remaining(num_steps: int, index: int, time_dif: int) -> float:
     """
     Terrible estimate of time remaining. Multiplies last time taken by remaining steps.
     """
     return timedelta(seconds=(num_steps - index) * time_dif)
 
 
-def calculate_exchange_length(A, mu_0, M_s):
+def calculate_exchange_length(A: float, mu_0: float, M_s: float) -> float:
+    """
+    Calculates the exchange length from the exchange constant A, permeability mu_0, and saturation magnetisation M_s.
+    """
     return sqrt(2*A / (mu_0 * M_s**2))
 
 
