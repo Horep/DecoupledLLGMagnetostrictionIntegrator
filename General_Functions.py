@@ -133,7 +133,9 @@ def nondimensional_time(gyromagnetic: float, mu_0: float, M_s: float) -> float:
 
 def est_time_remaining(num_steps: int, index: int, time_so_far: float) -> float:
     """
-    Terrible estimate of time remaining. Multiplies last time taken by remaining steps.
+    Rough estimate of time remaining. Works by keeping track of current work time
+    dividing by number of steps taken, and then multiplying by remaining steps
+    should give an idea of how long things take!
     """
     return timedelta(seconds=time_so_far/index * (num_steps - index))
 
