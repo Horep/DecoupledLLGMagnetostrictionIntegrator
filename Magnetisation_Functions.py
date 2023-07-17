@@ -323,9 +323,7 @@ def update_magnetisation(
     v = QMatrix.give_q_magnetisation_update(
         a_mag, B, f_mag, M_mag_fixed, L_mag_fixed, Q, v0
     )
-    print(
-        f"biggest update = {K*np.amax(np.abs(v))}"
-    )  # gives an idea of how large the updates are. Big is bad.
+    #print(f"biggest update = {K*np.amax(np.abs(v))}")  # gives an idea of how large the updates are. Big is bad.
     N = fes_mag.ndof // 3
     mag_gfux, mag_gfuy, mag_gfuz = mag_gfu.components
     mag_gfux.vec.FV().NumPy()[:] += K * v[0:N]

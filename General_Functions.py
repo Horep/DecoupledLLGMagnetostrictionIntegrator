@@ -131,11 +131,11 @@ def nondimensional_time(gyromagnetic: float, mu_0: float, M_s: float) -> float:
     return gyromagnetic * mu_0 * M_s
 
 
-def est_time_remaining(num_steps: int, index: int, time_dif: float) -> float:
+def est_time_remaining(num_steps: int, index: int, time_so_far: float) -> float:
     """
     Terrible estimate of time remaining. Multiplies last time taken by remaining steps.
     """
-    return timedelta(seconds=(num_steps - index) * time_dif)
+    return timedelta(seconds=time_so_far/index * (num_steps - index))
 
 
 def calculate_exchange_length(A: float, mu_0: float, M_s: float) -> float:
