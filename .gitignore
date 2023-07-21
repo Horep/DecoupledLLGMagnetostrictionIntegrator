@@ -2,3 +2,5 @@
 *.vtu
 *.pdf
 *.npy
+__pycache__/Magnetisation_Functions.cpython-37.pyc
+__pycache__/Magnetisation_Functions.cpython-37.pyc
