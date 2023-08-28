@@ -133,6 +133,22 @@ def build_tangent_plane_matrix(
     return B
 
 
+def vv_h(v0: np.ndarray, fes_mag: VectorH1) -> GridFunction:
+    """
+    Returns a GridFunction with values corresponding to those given in v0.
+    Used to turn the vv_{h}^{i} numpy array into a function that can be integrated.
+    Parameters:
+        v0 (np.ndarray): Numpy array with data values.\n
+        fes_mag (VectorH1): Finite element space.
+
+    Returns:
+        vv (ngsolve.comp.GridFunction): GridFunction corresponding to the update to the magnetisation.
+    """
+    vv = GridFunction(fes_mag)
+    vv.vec.FV().NumPy()[:] = v0
+    return vv
+
+
 def give_magnetisation_update(
     A: BilinearForm,
     B: scipy.sparse.csr.csr_matrix,
